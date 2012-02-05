@@ -1,30 +1,38 @@
+PROGNAME = sample
+LIBS = -lrt -lm -lpthread
 LIBUV_INC = $(LIBUV_PATH)/include
 HTTP_PARSER_INC = $(HTTP_PARSER_PATH)
-CPPFLAGS = -std=gnu++0x -I$(LIBUV_INC) -I$(HTTP_PARSER_INC)
+INCLUDES = -I$(LIBUV_INC) -I$(HTTP_PARSER_INC)
+LDFLAGS = 
+OBJECTS = sample.o $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o
+CPPFLAGS = -std=gnu++0x
 CPPFLAGS_DEBUG = $(CPPFLAGS) -g -O0
 
-all: test
+all: env_req $(PROGNAME)
 
-test: env_req test.cpp uv11.h libuv/uv.a http-parser/http_parser.o
-	g++ $(CPPFLAGS_DEBUG) -o test test.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o -lrt -lm -lpthread
+$(PROGNAME): $(OBJECTS)
+	g++ -o $(PROGNAME) $(OBJECTS) $(LIBS) $(INCLUDES) $(LDFLAGS)
 
-libuv/uv.a:
+$(OBJECTS): Makefile
+
+$(LIBUV_PATH)/uv.a:
 	$(MAKE) -C $(LIBUV_PATH)
 
-http-parser/http_parser.o:
+$(HTTP_PARSER_PATH)/http_parser.o:
 	$(MAKE) -C $(HTTP_PARSER_PATH) http_parser.o
-	
+
+sample.o: sample.cpp $(wildcard *.h)
+	g++ -c $(CPPFLAGS) $(INCLUDES) -o sample.o sample.cpp 
+    
 env_req:
 ifndef LIBUV_PATH
 	$(error Variable 'LIBUV_PATH' must be set to the path of libuv library.)
 endif
 ifndef HTTP_PARSER_PATH
 	$(error Variable 'HTTP_PARSER_PATH' must be set to the path of http-parser library.)
-endif
+endif 
 
 clean:
 	rm -f $(LIBUV_PATH)/uv.a
 	rm -f $(HTTP_PARSER_PATH)/http_parser.o
-	rm -f *.o
-	rm -f *.a
-	rm -f test
+	rm *.o $(PROGNAME)

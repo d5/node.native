@@ -216,20 +216,20 @@ namespace uv
         handle(T* x)
             : uv_handle_(reinterpret_cast<uv_handle_t*>(x))
         { 
-        	printf("handle(): %x\n", this);
+        	//printf("handle(): %x\n", this);
             assert(x);
         }
 
         virtual ~handle()
         {
-        	printf("~handle(): %x\n", this);
+        	//printf("~handle(): %x\n", this);
             uv_handle_ = nullptr;
         }
 
         handle(const handle& h)
             : uv_handle_(h.uv_handle_)
         { 
-        	printf("handle(const handle&): %x\n", this);
+        	//printf("handle(const handle&): %x\n", this);
         }
 
     public:        
