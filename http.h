@@ -1,36 +1,32 @@
 #ifndef HTTP_H
 #define HTTP_H
 
+#include <cassert>
+#include <memory>
+#include <http_parser.h>
+#include "base.h"
+
+using namespace native::base;
+
 namespace native
 {
 	namespace http
 	{
-		typedef http_method method;
-		typedef http_parser_url_fields url_fields;
-		typedef http_errno error;
-
-		const char* get_error_name(error err)
-		{
-			return http_errno_name(err);
-		}
-
-		const char* get_error_description(error err)
-		{
-			return http_errno_description(err);
-		}
-
-		const char* get_method_name(method m)
-		{
-			return http_method_str(m);
-		}
-
 		class url_parse_exception { };
 
 		class url
 		{
 		public:
-			url(const char* data, std::size_t len, bool is_connect=false)
-				: handle_(), buf_(data, len)
+			url()
+				: handle_(), buf_()
+			{ }
+
+			url(const url&) = default;
+			url& operator =(const url&) = default;
+			~url() = default;
+
+		public:
+			void from_buf(const char* data, std::size_t len, bool is_connect=false)
 			{
 				assert(data && len);
 
@@ -42,12 +38,6 @@ namespace native
 				}
 			}
 
-			url() = default;
-			url(const url&) = default;
-			url& operator =(const url&) = default;
-			~url() = default;
-
-		public:
 			bool has_schema() const
 			{
 				return handle_.field_set & (1<<UF_SCHEMA);
@@ -138,97 +128,123 @@ namespace native
 			std::string buf_;
 		};
 
-		class parser
-		{
-			typedef http_parser_type parser_type;
-
-		public:
-			parser(parser_type type)
-				: handle_(), schema_(), host_(), port_(), path_(), query_(), fragment_(), headers_(), body_()
-			{
-				http_parser_init(&handle_, type);
-			}
-
-			virtual ~parser() {
-			}
-
-		protected:
-			template<typename cb_t>
-			void set_message_begin_callback(cb_t callback)
-			{
-			}
-
-			template<typename cb_t>
-			void set_url_callback(cb_t callback)
-			{
-			}
-
-			std::size_t parse(const char* data, std::size_t len)
-			{
-				handle_.data = this;
-
-				http_parser_settings settings;
-				settings.on_url = [](http_parser* h, const char *at, size_t length) {
-					auto p = reinterpret_cast<parser*>(h->data);
-					assert(p);
-
-					url u(at, length);
-
-					p->schema_ = u.has_schema() ? u.schema() : "HTTP";
-					p->host_ = u.has_host() ? u.host() : "";
-					p->port_ = u.has_port() ? u.port() : (p->schema_ == "HTTP" ? 80 : 443);
-					p->path_ = u.has_path() ? u.path() : "/";
-					p->query_ = u.has_query() ? u.query() : "";
-					p->fragment_ = u.has_fragment() ? u.fragment() : "";
-
-					return 0;
-				};
-
-				return http_parser_execute(&handle_, &settings, data, len);
-			}
-
-		private:
-			// copy prevention
-			parser(const parser&);
-			void operator =(const parser&);
-
-		private:
-			http_parser handle_;
-			std::string schema_;
-			std::string host_;
-			int port_;
-			std::string path_;
-			std::string query_;
-			std::string fragment_;
-			std::map<std::string, std::string> headers_;
-			std::string body_;
-		};
-
-		class request : public parser
+		class request
 		{
 		public:
-			request()
-				: parser(HTTP_REQUEST)
+			request(tcp* server)
+				: client_(new tcp)
+				, parser_()
+				, parser_settings_()
+				, url_()
 			{
+				assert(server);
+
+				// TODO: check error
+				server->accept(client_);
 			}
 
 			virtual ~request()
 			{
 			}
+
+			template<typename callback_t>
+			bool parse(callback_t callback)
+			{
+				http_parser_init(&parser_, HTTP_REQUEST);
+				parser_.data = this;
+
+				http_parser_settings settings;
+				settings.on_url = [](http_parser* parser, const char *at, size_t len) {
+					auto req = reinterpret_cast<request*>(parser->data);
+					req->url_.from_buf(at, len);
+					return 0;
+				};
+				settings.on_headers_complete = [](http_parser* parser) {
+					printf("on_headers_complete\n");
+
+					auto req = reinterpret_cast<request*>(parser->data);
+
+					// invoke callback
+					//callback(req);
+
+					//return 0;
+					return 1; // do not parse body
+				};
+				settings.on_message_complete = [](http_parser* parser) {
+					printf("on_message_complete\n");
+					return 0;
+				};
+
+				client_->read_start([=](const char* buf, int len){
+					http_parser_execute(&parser_, &parser_settings_, buf, len);
+				});
+
+				return false;
+			}
+
+		private:
+			std::shared_ptr<tcp> client_;
+
+			http_parser parser_;
+			// TODO: should be static
+			http_parser_settings parser_settings_;
+			url url_;
 		};
 
-		class response : public parser
+		class http
 		{
 		public:
-			response()
-				: parser(HTTP_RESPONSE)
+			http()
+				: server_(new tcp)
 			{
 			}
 
-			virtual ~response()
+			virtual ~http()
 			{
+				if(server_)
+				{
+					server_->close([](){});
+				}
 			}
+
+		public:
+			template<typename callback_t>
+			bool listen(const std::string& ip, int port, callback_t callback)
+			{
+				if(server_->bind(ip, port))
+				{
+					return server_->listen([=] {
+						std::shared_ptr<request> req(new request(server_.get()));
+						return req->parse(callback);
+					});
+				}
+
+				// callback function will not be called!
+				return false;
+			}
+
+		private:
+			std::shared_ptr<tcp> server_;
 		};
+
+		typedef http_method method;
+		typedef http_parser_url_fields url_fields;
+		typedef http_errno error;
+
+		const char* get_error_name(error err)
+		{
+			return http_errno_name(err);
+		}
+
+		const char* get_error_description(error err)
+		{
+			return http_errno_description(err);
+		}
+
+		const char* get_method_name(method m)
+		{
+			return http_method_str(m);
+		}
 	}
 }
 
