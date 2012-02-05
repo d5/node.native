@@ -1,0 +1,9 @@
+*.a
+*.o
+test
+
+.cproject
+.project
+.settings/*
+
+
