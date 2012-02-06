@@ -2,7 +2,6 @@
 #include <native/http.h>
 using namespace native::http;
 
-int main()
-{
-	return native::run();
+int main() {
+    return native::run();
 }
