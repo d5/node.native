@@ -4,8 +4,10 @@
 #include <cassert>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <http_parser.h>
 #include "base.h"
+#include "text.h"
 
 using namespace native::base;
 
@@ -20,6 +22,18 @@ namespace native
 		typedef void (*listen_callback_t)(request&, response&);
 
 		class url_parse_exception { };
+		class response_exception
+		{
+		public:
+			response_exception(const std::string& message)
+				: message_(message)
+			{}
+
+			const std::string& message() const { return message_; }
+
+		private:
+			std::string message_;
+		};
 
 		class url_obj
 		{
@@ -122,26 +136,105 @@ namespace native
 		private:
 			response(tcp* client)
 				: socket_(client)
-			{}
+				, headers_()
+				, status_(200)
+			{
+				headers_["Content-Type"] = "text/html";
+			}
 
 		public:
-			~response()
+			virtual ~response()
 			{}
 
 		public:
 			template<typename F>
-			void write(std::string& s, F callback)
+			bool end(const std::string& body, F callback)
 			{
-				// TODO: error check
-				socket_->write(s.c_str(), static_cast<int>(s.length()), callback);
+				// Content-Length
+				if(headers_.find("Content-Length") == headers_.end())
+				{
+					std::stringstream ss;
+					ss << body.length();
+					headers_["Content-Length"] = ss.str();
+				}
+
+				std::stringstream response_text;
+				response_text << "HTTP/1.1 ";
+				response_text << status_ << " " << get_status_text(status_) << "\r\n";
+				for(auto h : headers_)
+				{
+					response_text << h.first << ": " << h.second << "\r\n";
+				}
+				response_text << "\r\n";
+				response_text << body;
+
+				auto str = response_text.str();
+				return socket_->write(str.c_str(), static_cast<int>(str.length()), callback);
+			}
+
+			void set_status(int status_code)
+			{
+				status_ = status_code;
 			}
 
 			void set_header(const std::string& key, const std::string& value)
 			{
+				headers_[key] = value;
+			}
+
+			static std::string get_status_text(int status)
+			{
+				switch(status)
+				{
+				case 100: return "Continue";
+				case 101: return "Switching Protocols";
+				case 200: return "OK";
+				case 201: return "Created";
+				case 202: return "Accepted";
+				case 203: return "Non-Authoritative Information";
+				case 204: return "No Content";
+				case 205: return "Reset Content";
+				case 206: return "Partial Content";
+				case 300: return "Multiple Choices";
+				case 301: return "Moved Permanently";
+				case 302: return "Found";
+				case 303: return "See Other";
+				case 304: return "Not Modified";
+				case 305: return "Use Proxy";
+				//case 306: return "(reserved)";
+				case 307: return "Temporary Redirect";
+				case 400: return "Bad Request";
+				case 401: return "Unauthorized";
+				case 402: return "Payment Required";
+				case 403: return "Forbidden";
+				case 404: return "Not Found";
+				case 405: return "Method Not Allowed";
+				case 406: return "Not Acceptable";
+				case 407: return "Proxy Authentication Required";
+				case 408: return "Request Timeout";
+				case 409: return "Conflict";
+				case 410: return "Gone";
+				case 411: return "Length Required";
+				case 412: return "Precondition Failed";
+				case 413: return "Request Entity Too Large";
+				case 414: return "Request-URI Too Long";
+				case 415: return "Unsupported Media Type";
+				case 416: return "Requested Range Not Satisfiable";
+				case 417: return "Expectation Failed";
+				case 500: return "Internal Server Error";
+				case 501: return "Not Implemented";
+				case 502: return "Bad Gateway";
+				case 503: return "Service Unavailable";
+				case 504: return "Gateway Timeout";
+				case 505: return "HTTP Version Not Supported";
+				default: throw response_exception("Not supported status code.");
+				}
 			}
 
 		private:
 			tcp* socket_;
+			std::map<std::string, std::string, native::ci_less> headers_;
+			int status_;
 		};
 
 		class request
@@ -165,7 +258,7 @@ namespace native
 			}
 
 		public:
-			~request()
+			virtual ~request()
 			{
 				printf("~request() %x\n", this);
 			}
