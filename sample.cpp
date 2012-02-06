@@ -1,9 +1,4 @@
-#include <iostream>
-#include <string>
 #include "http.h"
-
-using namespace std;
-using namespace native::base;
 using namespace native::http;
 
 int main()
