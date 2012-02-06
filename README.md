@@ -19,7 +19,6 @@ Simplest web-server example using node.native.
             res.end("Hello, World!\n", [=](int status) {});
         });
         server.listen("0.0.0.0", 8080);
-    
-        // TODO: integrate into http class
+
         return loop::run_default();
     }
