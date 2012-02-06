@@ -10,15 +10,6 @@ namespace native
 {
 	namespace base
 	{
-		enum callback_id
-		{
-			cid_close = 0,
-			cid_listen,
-			cid_read_start,
-			cid_write,
-			cid_max
-		};
-
 		namespace callback_serialization
 		{
 			class callback_object_base
@@ -74,8 +65,8 @@ namespace native
 		class callbacks
 		{
 		public:
-			callbacks()
-				: lut_(cid_max)
+			callbacks(int max_callbacks)
+				: lut_(max_callbacks)
 			{
 				//printf("callbacks(): %x\n", this);
 			}
@@ -85,19 +76,19 @@ namespace native
 			}
 
 			template<typename callback_t>
-			static void store(void* target, callback_id cid, const callback_t& callback, void* data=nullptr)
+			static void store(void* target, int cid, const callback_t& callback, void* data=nullptr)
 			{
 				reinterpret_cast<callbacks*>(target)->lut_[cid] = callback_object_ptr(new callback_serialization::callback_object<callback_t>(callback, data));
 			}
 
 			template<typename callback_t>
-			static void get_data(void* target, callback_id cid)
+			static void get_data(void* target, int cid)
 			{
 				return reinterpret_cast<callbacks*>(target)->lut_[cid]->get_data();
 			}
 
 			template<typename callback_t, typename ...A>
-			static void invoke(void* target, callback_id cid, A&& ... args)
+			static void invoke(void* target, int cid, A&& ... args)
 			{
 				auto x = dynamic_cast<callback_serialization::callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid].get());
 				assert(x);

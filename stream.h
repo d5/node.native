@@ -30,10 +30,10 @@ namespace native
 			template<typename F>
 			bool listen(F callback, int backlog=128)
 			{
-				callbacks::store(get()->data, cid_listen, callback);
+				callbacks::store(get()->data, uv_cid_listen, callback);
 				return uv_listen(get<uv_stream_t>(), backlog,
 					[](uv_stream_t* s, int status) {
-						callbacks::invoke<F>(s->data, cid_listen, status);
+						callbacks::invoke<F>(s->data, uv_cid_listen, status);
 					}) == 0;
 			}
 
@@ -51,7 +51,7 @@ namespace native
 			template<int max_alloc_size, typename F>
 			bool read_start(F callback)
 			{
-				callbacks::store(get()->data, cid_read_start, callback);
+				callbacks::store(get()->data, uv_cid_read_start, callback);
 
 				return uv_read_start(get<uv_stream_t>(),
 					[](uv_handle_t*, size_t suggested_size){
@@ -70,14 +70,14 @@ namespace native
 						{
 							assert(uv_last_error(s->loop).code == UV_EOF);
 							callbacks::invoke<F>(s->data,
-								cid_read_start,
+								uv_cid_read_start,
 								nullptr,
 								static_cast<int>(nread));
 						}
 						else if(nread >= 0)
 						{
 							callbacks::invoke<F>(s->data,
-								cid_read_start,
+								uv_cid_read_start,
 								buf.base,
 								static_cast<int>(nread));
 						}
@@ -100,11 +100,11 @@ namespace native
 				// TODO: const_cast<>!!!
 				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), len } };
 
-				callbacks::store(get(), cid_write, callback);
+				callbacks::store(get(), uv_cid_write, callback);
 
 				uv_write_t* w = new uv_write_t;
 				return uv_write(w, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
-					callbacks::invoke<F>(req->handle, cid_write, status);
+					callbacks::invoke<F>(req->handle, uv_cid_write, status);
 				}) == 0;
 			}
 

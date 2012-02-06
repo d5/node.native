@@ -16,6 +16,15 @@ namespace native
 		typedef uv_req_type req_type;
 		typedef uv_membership membership;
 
+		enum uv_callback_id
+		{
+			uv_cid_close = 0,
+			uv_cid_listen,
+			uv_cid_read_start,
+			uv_cid_write,
+			uv_cid_max
+		};
+
 		class exception
 		{
 		public:

@@ -23,7 +23,7 @@ namespace native
 				//printf("handle(): %x\n", this);
 				assert(uv_handle_);
 
-				uv_handle_->data = new callbacks();
+				uv_handle_->data = new callbacks(uv_cid_max);
 				assert(uv_handle_->data);
 			}
 
@@ -51,10 +51,10 @@ namespace native
 			template<typename F>
 			void close(F callback)
 			{
-				callbacks::store(get()->data, cid_close, callback);
+				callbacks::store(get()->data, uv_cid_close, callback);
 				uv_close(get(),
 					[](uv_handle_t* h) {
-						callbacks::invoke<F>(h->data, cid_close);
+						callbacks::invoke<F>(h->data, uv_cid_close);
 						_delete_handle(h);
 					});
 			}
