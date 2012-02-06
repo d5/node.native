@@ -10,6 +10,7 @@
 #include "handle.h"
 #include "net.h"
 #include "text.h"
+#include "callback.h"
 
 namespace native
 {
@@ -281,16 +282,13 @@ namespace native
 			std::map<std::string, std::string, native::text::ci_less> headers_;
 		};
 
-		typedef void (*listen_callback_t)(request&, response&);
-
 		class http_client
 		{
 			friend class http;
 
 		private:
-			http_client(native::net::tcp* server, listen_callback_t callback)
+			http_client(native::net::tcp* server)
 				: socket_(nullptr)
-				, callback_(callback)
 				, parser_()
 				, was_header_value_(true)
 				, last_header_field_()
@@ -298,6 +296,7 @@ namespace native
 				, parser_settings_()
 				, request_(nullptr)
 				, response_(nullptr)
+				, callback_lut_(new native::base::callbacks(1))
 			{
 				//printf("request() %x callback_=%x\n", this, callback_);
 				assert(server);
@@ -310,25 +309,46 @@ namespace native
 		public:
 			~http_client()
 			{
-				delete request_;
-				request_ = nullptr;
-				delete response_;
-				response_ = nullptr;
+				if(request_)
+				{
+					delete request_;
+					request_ = nullptr;
+				}
 
-				socket_->close([=](){
-					delete socket_;
-					socket_ = nullptr;
-				});
+				if(response_)
+				{
+					delete response_;
+					response_ = nullptr;
+				}
+
+				if(callback_lut_)
+				{
+					delete callback_lut_;
+					callback_lut_ = nullptr;
+				}
+
+				if(socket_)
+				{
+					// TODO: maybe close() does not affect socket_ pointer itself. So, delete socket_ does not have to be inside the callback.
+					socket_->close([=](){
+						delete socket_;
+						socket_ = nullptr;
+					});
+				}
 			}
 
 		private:
-			bool parse()
+			template<typename callback_t>
+			bool parse(callback_t callback)
 			{
 				request_ = new request;
 				response_ = new response(this, socket_);
 
 				http_parser_init(&parser_, HTTP_REQUEST);
 				parser_.data = this;
+
+				// store callback object
+				native::base::callbacks::store(callback_lut_, 0, callback);
 
 				parser_settings_.on_url = [](http_parser* parser, const char *at, size_t len) {
 					auto client = reinterpret_cast<http_client*>(parser->data);
@@ -391,11 +411,8 @@ namespace native
 				};
 				parser_settings_.on_message_complete = [](http_parser* parser) {
 					auto client = reinterpret_cast<http_client*>(parser->data);
-
-
-
-					client->callback_(*client->request_, *client->response_);
-
+					// invoke stored callback object
+					native::base::callbacks::invoke<callback_t>(client->callback_lut_, 0, *client->request_, *client->response_);
 					return 0;
 				};
 
@@ -407,8 +424,6 @@ namespace native
 			}
 
 		private:
-			listen_callback_t callback_;
-
 			http_parser parser_;
 			http_parser_settings parser_settings_;
 			bool was_header_value_;
@@ -418,16 +433,15 @@ namespace native
 			native::net::tcp* socket_;
 			request* request_;
 			response* response_;
+
+			native::base::callbacks* callback_lut_;
 		};
-
-
 
 		class http
 		{
 		public:
-			http(listen_callback_t listen_callback)
+			http()
 				: socket_(new native::net::tcp)
-				, listen_callback_(listen_callback)
 			{
 				//printf("http() %x\n", this);
 			}
@@ -443,15 +457,16 @@ namespace native
 			}
 
 		public:
-			bool listen(const std::string& ip, int port)
+			template<typename callback_t>
+			bool listen(const std::string& ip, int port, callback_t callback)
 			{
 				if(!socket_->bind(ip, port)) return false;
 
 				if(!socket_->listen([=](int status) {
 					// TODO: error check - test if status is not 0
 
-					auto client = new http_client(socket_.get(), listen_callback_);
-					client->parse();
+					auto client = new http_client(socket_.get());
+					client->parse(callback);
 				})) return false;
 
 				return native::base::loop::run_default();
@@ -459,7 +474,6 @@ namespace native
 
 		private:
 			std::shared_ptr<native::net::tcp> socket_;
-			listen_callback_t listen_callback_;
 		};
 
 		typedef http_method method;
