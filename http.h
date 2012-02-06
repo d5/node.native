@@ -469,7 +469,7 @@ namespace native
 					client->parse(callback);
 				})) return false;
 
-				return native::base::loop::run_default();
+				return true;
 			}
 
 		private:

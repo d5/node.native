@@ -75,8 +75,6 @@ namespace native
 
 			bool run() { return uv_run(uv_loop_)==0; }
 			bool run_once() { return uv_run_once(uv_loop_)==0; }
-			static bool run_default() { return uv_run(uv_default_loop())==0; }
-			static bool run_default_once() { return uv_run_once(uv_default_loop())==0; }
 
 			void ref() { uv_ref(uv_loop_); }
 			void unref() { uv_unref(uv_loop_); }
@@ -84,7 +82,6 @@ namespace native
 			int64_t now() { return uv_now(uv_loop_); }
 
 			error last_error() { return uv_last_error(uv_loop_); }
-			static error last_error_default() { return uv_last_error(uv_default_loop()); }
 
 		private:
 			loop(const loop&);
@@ -94,6 +91,19 @@ namespace native
 			uv_loop_t* uv_loop_;
 		};
 	}
+
+	int run()
+	{
+		return uv_run(uv_default_loop());
+	}
+
+	int run_once()
+	{
+		return uv_run(uv_default_loop());
+	}
+
+	base::error get_last_error() { return uv_last_error(uv_default_loop()); }
 }
+
 
 #endif
