@@ -94,6 +94,7 @@ namespace native
 				callbacks::store(get()->data, uv_cid_write, callback);
 				return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
 					callbacks::invoke<F>(req->handle->data, uv_cid_write, status);
+					delete req;
 				}) == 0;
 			}
 
@@ -103,6 +104,7 @@ namespace native
 				callbacks::store(get()->data, uv_cid_shutdown, callback);
 				return uv_shutdown(new uv_shutdown_t, get<uv_stream_t>(), [](uv_shutdown_t* req, int status) {
 					callbacks::invoke<callback_t>(req->handle->data, uv_cid_shutdown, status);
+					delete req;
 				}) == 0;
 			}
 
