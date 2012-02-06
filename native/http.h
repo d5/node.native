@@ -34,7 +34,7 @@ namespace native
 
 		class url_obj
 		{
-			friend class http_client_context;
+			friend class client_context;
 
 		public:
 			url_obj()
@@ -126,15 +126,15 @@ namespace native
 			std::string buf_;
 		};
 
-		class http_client_context;
-		typedef std::shared_ptr<http_client_context> http_client_ptr;
+		class client_context;
+		typedef std::shared_ptr<client_context> http_client_ptr;
 
 		class response
 		{
-			friend class http_client_context;
+			friend class client_context;
 
 		private:
-			response(http_client_context* client, native::net::tcp* socket)
+			response(client_context* client, native::net::tcp* socket)
 				: client_(client)
 				, socket_(socket)
 				, headers_()
@@ -242,7 +242,7 @@ namespace native
 
 		class request
 		{
-			friend class http_client_context;
+			friend class client_context;
 
 		private:
 			request()
@@ -282,12 +282,12 @@ namespace native
 			std::map<std::string, std::string, native::text::ci_less> headers_;
 		};
 
-		class http_client_context
+		class client_context
 		{
 			friend class http;
 
 		private:
-			http_client_context(native::net::tcp* server)
+			client_context(native::net::tcp* server)
 				: socket_(nullptr)
 				, parser_()
 				, was_header_value_(true)
@@ -307,7 +307,7 @@ namespace native
 			}
 
 		public:
-			~http_client_context()
+			~client_context()
 			{
 				if(request_)
 				{
@@ -351,7 +351,7 @@ namespace native
 				native::base::callbacks::store(callback_lut_, 0, callback);
 
 				parser_settings_.on_url = [](http_parser* parser, const char *at, size_t len) {
-					auto client = reinterpret_cast<http_client_context*>(parser->data);
+					auto client = reinterpret_cast<client_context*>(parser->data);
 
 					//  TODO: from_buf() can throw an exception: check
 					client->request_->url_.from_buf(at, len);
@@ -359,7 +359,7 @@ namespace native
 					return 0;
 				};
 				parser_settings_.on_header_field = [](http_parser* parser, const char* at, size_t len) {
-					auto client = reinterpret_cast<http_client_context*>(parser->data);
+					auto client = reinterpret_cast<client_context*>(parser->data);
 
 					if(client->was_header_value_)
 					{
@@ -382,7 +382,7 @@ namespace native
 					return 0;
 				};
 				parser_settings_.on_header_value = [](http_parser* parser, const char* at, size_t len) {
-					auto client = reinterpret_cast<http_client_context*>(parser->data);
+					auto client = reinterpret_cast<client_context*>(parser->data);
 
 					if(!client->was_header_value_)
 					{
@@ -397,7 +397,7 @@ namespace native
 					return 0;
 				};
 				parser_settings_.on_headers_complete = [](http_parser* parser) {
-					auto client = reinterpret_cast<http_client_context*>(parser->data);
+					auto client = reinterpret_cast<client_context*>(parser->data);
 
 					// add last entry if any
 					if(!client->last_header_field_.empty())
@@ -410,7 +410,7 @@ namespace native
 					return 1; // do not parse body
 				};
 				parser_settings_.on_message_complete = [](http_parser* parser) {
-					auto client = reinterpret_cast<http_client_context*>(parser->data);
+					auto client = reinterpret_cast<client_context*>(parser->data);
 					// invoke stored callback object
 					native::base::callbacks::invoke<callback_t>(client->callback_lut_, 0, *client->request_, *client->response_);
 					return 0;
@@ -465,7 +465,7 @@ namespace native
 				if(!socket_->listen([=](int status) {
 					// TODO: error check - test if status is not 0
 
-					auto client = new http_client_context(socket_.get());
+					auto client = new client_context(socket_.get());
 					client->parse(callback);
 				})) return false;
 
