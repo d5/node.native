@@ -10,10 +10,11 @@ using namespace native::http;
 int main()
 {
     http server([](request& req, response& res){
-		cout << "Hi Client!" << endl;
-		cout << "PATH: " << req.url().path() << endl;
+		string response_text("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, World!\n");
+		res.write(response_text, [=](int status) {
+			// ...
+		});
 	});
-    printf("server: %x\n", &server);
     server.listen("0.0.0.0", 8080);
 
 	// TODO: integrate into http class

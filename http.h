@@ -60,9 +60,9 @@ namespace native
 
 			std::string host() const
 			{
-				// TODO: if not specified, use REMOTE_ADDR
+				// TODO: if not specified, use host name
 				if(has_schema()) return buf_.substr(handle_.field_data[UF_HOST].off, handle_.field_data[UF_HOST].len);
-				return std::string();
+				return std::string("localhost");
 			}
 
 			int port() const
@@ -129,8 +129,11 @@ namespace native
 			{}
 
 		public:
-			void write(const std::string& s)
+			template<typename F>
+			void write(std::string& s, F callback)
 			{
+				// TODO: error check
+				socket_->write(s.c_str(), static_cast<int>(s.length()), callback);
 			}
 
 			void set_header(const std::string& key, const std::string& value)
@@ -231,8 +234,6 @@ namespace native
 			url_obj url_;
 			std::map<std::string, std::string> headers_;
 		};
-
-
 
 		class http
 		{

@@ -10,6 +10,7 @@ namespace native
 			cid_close = 0,
 			cid_listen,
 			cid_read_start,
+			cid_write,
 			cid_max
 		};
 

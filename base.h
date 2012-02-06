@@ -239,6 +239,7 @@ namespace native
 				return uv_accept(get<uv_stream_t>(), client->get<uv_stream_t>()) == 0;
 			}
 
+			// TODO: read callback that pass buffer as std::string<> or std::vector<>?
 			template<typename F>
 			bool read_start(F callback)
 			{
@@ -276,21 +277,23 @@ namespace native
 			// TODO: implement read2_start()
 			//int read2_start(alloc_cb a, read2_cb r) { return uv_read2_start(get<uv_stream_t>(), a, r); }
 
-			/*
-			bool write(write_cb cb)
+			// TODO: add overloading that accepts std::vector<> or std::string<>
+			template<typename F>
+			bool write(const char* buf, int len, F callback)
 			{
-				uv_buf_t bufs[] = {
-					{ "Hello, World", 11 },
-					{ "Hello, World", 11 },
-				};
+				// TODO: const_cast<>!!!
+				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), len } };
+
+				callbacks::store(get(), cid_write, callback);
 
 				uv_write_t* w = new uv_write_t;
-				return uv_write(w, get<uv_stream_t>(), bufs, 2, cb);
+				return uv_write(w, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
+					callbacks::invoke<F>(req->handle, cid_write, status);
+				}) == 0;
 			}
-			int write2(buf& b, stream& send_handle, write_cb cb);
-			int write(std::vector<buf>& bufs, write_cb cb);
-			int write2(std::vector<buf>& bufs, stream& send_handle, write_cb cb);
-			*/
+
+			// TODO: implement write2()
+			//int write2(buf& b, stream& send_handle, write_cb cb);
 		};
 
 		class tcp : public stream
