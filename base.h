@@ -1,5 +1,5 @@
-#ifndef UV_11_H
-#define UV_11_H
+#ifndef BASE_H
+#define BASE_H
 
 #include <cassert>
 #include <memory>
@@ -10,6 +10,7 @@
 #include <utility>
 #include <uv.h>
 #include <http_parser.h>
+#include "callback.h"
 
 namespace native
 {
@@ -31,38 +32,14 @@ namespace native
 		class async;
 		class buf;
 
-		typedef std::shared_ptr<loop> loop_ptr;
 		typedef std::shared_ptr<handle> handle_ptr;
 		typedef std::shared_ptr<stream> stream_ptr;
 		typedef std::shared_ptr<tcp> tcp_ptr;
 
-		void delete_handle(uv_handle_t* h);
+		void _delete_handle(uv_handle_t* h);
 
-		typedef uv_handle_type handle_type;
 		typedef uv_req_type req_type;
 		typedef uv_membership membership;
-
-		typedef uv_alloc_cb alloc_cb;
-		typedef uv_read_cb read_cb;
-		typedef uv_read2_cb read2_cb;
-		typedef uv_write_cb write_cb;
-		typedef uv_connect_cb connect_cb;
-		typedef uv_shutdown_cb shutdown_cb;
-		typedef uv_shutdown_cb shutdown_cb;
-		typedef uv_connection_cb connection_cb;
-		typedef uv_close_cb close_cb;
-		typedef uv_timer_cb timer_cb;
-		typedef uv_async_cb async_cb;
-		typedef uv_shutdown_cb shutdown_cb;
-		typedef uv_prepare_cb prepare_cb;
-		typedef uv_check_cb check_cb;
-		typedef uv_idle_cb idle_cb;
-		typedef uv_getaddrinfo_cb getaddrinfo_cb;
-		typedef uv_exit_cb exit_cb;
-		typedef uv_fs_cb fs_cb;
-		typedef uv_work_cb work_cb;
-		typedef uv_after_work_cb after_work_cb;
-		typedef uv_fs_event_cb fs_event_cb;
 
 		class exception
 		{
@@ -106,43 +83,6 @@ namespace native
 			}
 			return false;
 		}
-
-		// SCO: serialized callback object
-		template<typename callback_t, typename data_t=void>
-		class sco
-		{
-		private:
-			sco(const callback_t& callback, data_t* data)
-				: callback_(callback), data_(data)
-			{ }
-
-		public:
-			~sco() = default;
-
-		public:
-			// TODO: after invoke(), sco object is deleted. this is not good!
-			template<typename T, typename ...A>
-			static void invoke(T* target, A&& ... args)
-			{
-				std::shared_ptr<sco>(reinterpret_cast<sco*>(target->data))->callback_(std::forward<A>(args)...);
-			}
-
-			template<typename T>
-			static data_t* get_data(T* target)
-			{
-				return reinterpret_cast<sco*>(target->data)->data_;
-			}
-
-			template<typename T>
-			static void store(T* target, const callback_t& cb, data_t* data=nullptr)
-			{
-				target->data = new sco(cb, data);
-			}
-
-		private:
-			callback_t callback_;
-			data_t* data_;
-		};
 
 		class err
 		{
@@ -218,20 +158,23 @@ namespace native
 			handle(T* x)
 				: uv_handle_(reinterpret_cast<uv_handle_t*>(x))
 			{
-				//printf("handle(): %x\n", this);
-				assert(x);
+				printf("handle(): %x\n", this);
+				assert(uv_handle_);
+
+				uv_handle_->data = new callbacks();
+				assert(uv_handle_->data);
 			}
 
 			virtual ~handle()
 			{
-				//printf("~handle(): %x\n", this);
+				printf("~handle(): %x\n", this);
 				uv_handle_ = nullptr;
 			}
 
 			handle(const handle& h)
 				: uv_handle_(h.uv_handle_)
 			{
-				//printf("handle(const handle&): %x\n", this);
+				printf("handle(const handle&): %x\n", this);
 			}
 
 		public:
@@ -246,11 +189,11 @@ namespace native
 			template<typename F>
 			void close(F callback)
 			{
-				sco<F>::store(get(), callback);
+				callbacks::store(get(), cid_close, callback);
 				uv_close(get(),
 					[](uv_handle_t* h) {
-						sco<F>::invoke(h);
-						delete_handle(h);
+						callbacks::invoke<F>(h, cid_close);
+						_delete_handle(h);
 					});
 			}
 
@@ -272,24 +215,26 @@ namespace native
 				: handle(x)
 			{ }
 
+			/*
 			int shutdown(shutdown_cb cb)
 			{
 				auto req = new uv_shutdown_t;
 				req->data = this;
 				return uv_shutdown(req, get<uv_stream_t>(), cb);
 			}
+			*/
 
 			template<typename F>
 			bool listen(F callback, int backlog=128)
 			{
-				sco<F>::store(get(), callback);
+				callbacks::store(get(), cid_listen, callback);
 				return uv_listen(get<uv_stream_t>(), backlog,
 					[](uv_stream_t* s, int status) {
-						sco<F>::invoke(s, status);
+						callbacks::invoke<F>(s, cid_listen, status);
 					}) == 0;
 			}
 
-			bool accept(stream_ptr client)
+			bool accept(stream* client)
 			{
 				return uv_accept(get<uv_stream_t>(), client->get<uv_stream_t>()) == 0;
 			}
@@ -297,7 +242,7 @@ namespace native
 			template<typename F>
 			bool read_start(F callback)
 			{
-				sco<F>::store(get(), callback);
+				callbacks::store(get(), cid_read_start, callback);
 
 				return uv_read_start(get<uv_stream_t>(),
 					[](uv_handle_t*, size_t suggested_size){
@@ -307,13 +252,15 @@ namespace native
 						if(nread < 0)
 						{
 							assert(uv_last_error(s->loop).code == UV_EOF);
-							sco<F>::invoke(s,
+							callbacks::invoke<F>(s,
+								cid_read_start,
 								nullptr,
 								static_cast<int>(nread));
 						}
 						else if(nread >= 0)
 						{
-							sco<F>::invoke(s,
+							callbacks::invoke<F>(s,
+								cid_read_start,
 								buf.base,
 								static_cast<int>(nread));
 						}
@@ -329,9 +276,9 @@ namespace native
 			// TODO: implement read2_start()
 			//int read2_start(alloc_cb a, read2_cb r) { return uv_read2_start(get<uv_stream_t>(), a, r); }
 
+			/*
 			bool write(write_cb cb)
 			{
-				/*
 				uv_buf_t bufs[] = {
 					{ "Hello, World", 11 },
 					{ "Hello, World", 11 },
@@ -339,13 +286,11 @@ namespace native
 
 				uv_write_t* w = new uv_write_t;
 				return uv_write(w, get<uv_stream_t>(), bufs, 2, cb);
-				*/
-				return false;
 			}
-
 			int write2(buf& b, stream& send_handle, write_cb cb);
 			int write(std::vector<buf>& bufs, write_cb cb);
 			int write2(std::vector<buf>& bufs, stream& send_handle, write_cb cb);
+			*/
 		};
 
 		class tcp : public stream
@@ -403,8 +348,17 @@ namespace native
 			}
 		};
 
-		void delete_handle(uv_handle_t* h)
+		void _delete_handle(uv_handle_t* h)
 		{
+			assert(h);
+
+			// clean up SCM
+			if(h->data)
+			{
+				delete reinterpret_cast<callbacks*>(h->data);
+				h->data = nullptr;
+			}
+
 			switch(h->type)
 			{
 				case UV_TCP: delete reinterpret_cast<uv_tcp_t*>(h); break;

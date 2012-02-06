@@ -22,7 +22,7 @@ $(HTTP_PARSER_PATH)/http_parser.o:
 	$(MAKE) -C $(HTTP_PARSER_PATH) http_parser.o
 
 sample.o: sample.cpp $(wildcard *.h)
-	g++ -c $(CPPFLAGS) $(INCLUDES) -o sample.o sample.cpp 
+	g++ -c $(CPPFLAGS_DEBUG) $(INCLUDES) -o sample.o sample.cpp 
     
 env_req:
 ifndef LIBUV_PATH
