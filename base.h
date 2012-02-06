@@ -23,6 +23,8 @@ namespace native
 			uv_cid_read_start,
 			uv_cid_write,
 			uv_cid_shutdown,
+			uv_cid_connect,
+			uv_cid_connect6,
 			uv_cid_max
 		};
 

@@ -20,13 +20,13 @@ namespace native
 				: handle(x)
 			{ }
 
-			template<typename F>
-			bool listen(F callback, int backlog=128)
+			template<typename callback_t>
+			bool listen(callback_t callback, int backlog=128)
 			{
 				callbacks::store(get()->data, uv_cid_listen, callback);
 				return uv_listen(get<uv_stream_t>(), backlog,
 					[](uv_stream_t* s, int status) {
-						callbacks::invoke<F>(s->data, uv_cid_listen, status);
+						callbacks::invoke<callback_t>(s->data, uv_cid_listen, status);
 					}) == 0;
 			}
 
@@ -87,13 +87,13 @@ namespace native
 			//int read2_start(alloc_cb a, read2_cb r) { return uv_read2_start(get<uv_stream_t>(), a, r); }
 
 			// TODO: add overloading that accepts std::vector<> or std::string<>
-			template<typename F>
-			bool write(const char* buf, int len, F callback)
+			template<typename callback_t>
+			bool write(const char* buf, int len, callback_t callback)
 			{
 				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), len } };
 				callbacks::store(get()->data, uv_cid_write, callback);
 				return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
-					callbacks::invoke<F>(req->handle->data, uv_cid_write, status);
+					callbacks::invoke<callback_t>(req->handle->data, uv_cid_write, status);
 					delete req;
 				}) == 0;
 			}

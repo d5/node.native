@@ -48,13 +48,13 @@ namespace native
 
 			bool is_active() { return uv_is_active(get()) != 0; }
 
-			template<typename F>
-			void close(F callback)
+			template<typename callback_t>
+			void close(callback_t callback)
 			{
 				callbacks::store(get()->data, uv_cid_close, callback);
 				uv_close(get(),
 					[](uv_handle_t* h) {
-						callbacks::invoke<F>(h->data, uv_cid_close);
+						callbacks::invoke<callback_t>(h->data, uv_cid_close);
 						_delete_handle(h);
 					});
 			}
