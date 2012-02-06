@@ -4,6 +4,8 @@
 #include <string>
 #include <uv.h>
 #include "base.h"
+#include "handle.h"
+#include "stream.h"
 
 namespace native
 {

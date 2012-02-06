@@ -11,17 +11,10 @@
 #include "net.h"
 #include "text.h"
 
-
 namespace native
 {
 	namespace http
 	{
-		class http;
-		class request;
-		class response;
-
-		typedef void (*listen_callback_t)(request&, response&);
-
 		class url_parse_exception : public native::base::exception
 		{
 		public:
@@ -40,7 +33,7 @@ namespace native
 
 		class url_obj
 		{
-			friend class request;
+			friend class http_client;
 
 		public:
 			url_obj()
@@ -132,26 +125,28 @@ namespace native
 			std::string buf_;
 		};
 
+		class http_client;
+		typedef std::shared_ptr<http_client> http_client_ptr;
+
 		class response
 		{
-			friend class request;
+			friend class http_client;
 
 		private:
-			response(native::net::tcp* client)
-				: socket_(client)
+			response(http_client* client, native::net::tcp* socket)
+				: client_(client)
+				, socket_(socket)
 				, headers_()
 				, status_(200)
 			{
 				headers_["Content-Type"] = "text/html";
 			}
 
-		public:
-			virtual ~response()
+			~response()
 			{}
 
 		public:
-			template<typename F>
-			bool end(const std::string& body, F callback)
+			bool end(const std::string& body)
 			{
 				// Content-Length
 				if(headers_.find("Content-Length") == headers_.end())
@@ -172,7 +167,10 @@ namespace native
 				response_text << body;
 
 				auto str = response_text.str();
-				return socket_->write(str.c_str(), static_cast<int>(str.length()), callback);
+				return socket_->write(str.c_str(), static_cast<int>(str.length()), [=](int status) {
+					// clean up
+					client_.reset();
+				});
 			}
 
 			void set_status(int status_code)
@@ -235,6 +233,7 @@ namespace native
 			}
 
 		private:
+			http_client_ptr client_;
 			native::net::tcp* socket_;
 			std::map<std::string, std::string, native::text::ci_less> headers_;
 			int status_;
@@ -242,62 +241,160 @@ namespace native
 
 		class request
 		{
-			friend class http;
+			friend class http_client;
 
 		private:
-			request(native::net::tcp* server, listen_callback_t callback)
-				: socket_(new native::net::tcp)
-				, callback_(callback)
-				, parser_()
-				, parser_settings_()
-				, url_()
+			request()
+				: url_()
 				, headers_()
 			{
-				//printf("request() %x callback_=%x\n", this, callback_);
-				assert(server);
-
-				// TODO: check error
-				server->accept(socket_);
 			}
 
-		public:
-			virtual ~request()
+			~request()
 			{
 				//printf("~request() %x\n", this);
 			}
 
 		public:
+			const url_obj& url() const { return url_; }
+
+			const std::string& get_header(const std::string& key, const std::string& default_value=std::string()) const
+			{
+				auto it = headers_.find(key);
+				if(it != headers_.end()) return it->second;
+				return default_value;
+			}
+
+			bool get_header(const std::string& key, std::string& value) const
+			{
+				auto it = headers_.find(key);
+				if(it != headers_.end())
+				{
+					value = it->second;
+					return true;
+				}
+				return false;
+			}
+
+		private:
+			url_obj url_;
+			std::map<std::string, std::string, native::text::ci_less> headers_;
+		};
+
+		typedef void (*listen_callback_t)(request&, response&);
+
+		class http_client
+		{
+			friend class http;
+
+		private:
+			http_client(native::net::tcp* server, listen_callback_t callback)
+				: socket_(nullptr)
+				, callback_(callback)
+				, parser_()
+				, was_header_value_(true)
+				, last_header_field_()
+				, last_header_value_()
+				, parser_settings_()
+				, request_(nullptr)
+				, response_(nullptr)
+			{
+				//printf("request() %x callback_=%x\n", this, callback_);
+				assert(server);
+
+				// TODO: check error
+				socket_ = new native::net::tcp;
+				server->accept(socket_);
+			}
+
+		public:
+			~http_client()
+			{
+				delete request_;
+				request_ = nullptr;
+				delete response_;
+				response_ = nullptr;
+
+				socket_->close([=](){
+					delete socket_;
+					socket_ = nullptr;
+				});
+			}
+
+		private:
 			bool parse()
 			{
+				request_ = new request;
+				response_ = new response(this, socket_);
+
 				http_parser_init(&parser_, HTTP_REQUEST);
 				parser_.data = this;
 
 				parser_settings_.on_url = [](http_parser* parser, const char *at, size_t len) {
-					auto req = reinterpret_cast<request*>(parser->data);
+					auto client = reinterpret_cast<http_client*>(parser->data);
 
 					//  TODO: from_buf() can throw an exception: check
-					req->url_.from_buf(at, len);
+					client->request_->url_.from_buf(at, len);
 
 					return 0;
 				};
+				parser_settings_.on_header_field = [](http_parser* parser, const char* at, size_t len) {
+					auto client = reinterpret_cast<http_client*>(parser->data);
+
+					if(client->was_header_value_)
+					{
+						// new field started
+						if(!client->last_header_field_.empty())
+						{
+							// add new entry
+							client->request_->headers_[client->last_header_field_] = client->last_header_value_;
+							client->last_header_value_.clear();
+						}
+
+						client->last_header_field_ = std::string(at, len);
+						client->was_header_value_ = false;
+					}
+					else
+					{
+						// appending
+						client->last_header_field_ += std::string(at, len);
+					}
+					return 0;
+				};
+				parser_settings_.on_header_value = [](http_parser* parser, const char* at, size_t len) {
+					auto client = reinterpret_cast<http_client*>(parser->data);
+
+					if(!client->was_header_value_)
+					{
+						client->last_header_value_ = std::string(at, len);
+						client->was_header_value_ = true;
+					}
+					else
+					{
+						// appending
+						client->last_header_value_ += std::string(at, len);
+					}
+					return 0;
+				};
 				parser_settings_.on_headers_complete = [](http_parser* parser) {
-					auto req = reinterpret_cast<request*>(parser->data);
+					auto client = reinterpret_cast<http_client*>(parser->data);
+
+					// add last entry if any
+					if(!client->last_header_field_.empty())
+					{
+						// add new entry
+						client->request_->headers_[client->last_header_field_] = client->last_header_value_;
+					}
 
 					//return 0;
 					return 1; // do not parse body
 				};
 				parser_settings_.on_message_complete = [](http_parser* parser) {
-					auto req = reinterpret_cast<request*>(parser->data);
+					auto client = reinterpret_cast<http_client*>(parser->data);
 
-					// parsing finished!
-					std::shared_ptr<response> res(new response(req->socket_));
 
-					req->callback_(*req, *res);
 
-					req->socket_->close([=](){
-						delete req->socket_;
-						delete req;
-					});
+					client->callback_(*client->request_, *client->response_);
 
 					return 0;
 				};
@@ -309,20 +406,21 @@ namespace native
 				return true;
 			}
 
-			const url_obj& url() const { return url_; }
-
 		private:
-			native::net::tcp* socket_;
 			listen_callback_t callback_;
 
 			http_parser parser_;
-
-			// TODO: should be static
 			http_parser_settings parser_settings_;
+			bool was_header_value_;
+			std::string last_header_field_;
+			std::string last_header_value_;
 
-			url_obj url_;
-			std::map<std::string, std::string> headers_;
+			native::net::tcp* socket_;
+			request* request_;
+			response* response_;
 		};
+
+
 
 		class http
 		{
@@ -352,8 +450,8 @@ namespace native
 				if(!socket_->listen([=](int status) {
 					// TODO: error check - test if status is not 0
 
-					auto req = new request(socket_.get(), listen_callback_);
-					req->parse();
+					auto client = new http_client(socket_.get(), listen_callback_);
+					client->parse();
 				})) return false;
 
 				return native::base::loop::run_default();
