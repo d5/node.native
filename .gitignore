@@ -1,9 +1,7 @@
-*.a
-*.o
-sample
-
 .cproject
 .project
 .settings/*
 
+webclient
+webserver
 
