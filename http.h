@@ -43,18 +43,18 @@ namespace native
 			url_obj()
 				: handle_(), buf_()
 			{
-				printf("url_obj() %x\n", this);
+				//printf("url_obj() %x\n", this);
 			}
 
 			url_obj(const url_obj& c)
 				: handle_(c.handle_), buf_(c.buf_)
 			{
-				printf("url_obj(const url_obj&) %x\n", this);
+				//printf("url_obj(const url_obj&) %x\n", this);
 			}
 
 			url_obj& operator =(const url_obj& c)
 			{
-				printf("url_obj::operator =(const url_obj&) %x\n", this);
+				//printf("url_obj::operator =(const url_obj&) %x\n", this);
 				handle_ = c.handle_;
 				buf_ = c.buf_;
 				return *this;
@@ -62,7 +62,7 @@ namespace native
 
 			~url_obj()
 			{
-				printf("~url_obj() %x\n", this);
+				//printf("~url_obj() %x\n", this);
 			}
 
 		public:
@@ -250,7 +250,7 @@ namespace native
 				, url_()
 				, headers_()
 			{
-				printf("request() %x callback_=%x\n", this, callback_);
+				//printf("request() %x callback_=%x\n", this, callback_);
 				assert(server);
 
 				// TODO: check error
@@ -260,7 +260,7 @@ namespace native
 		public:
 			virtual ~request()
 			{
-				printf("~request() %x\n", this);
+				//printf("~request() %x\n", this);
 			}
 
 		public:
@@ -274,27 +274,20 @@ namespace native
 
 					//  TODO: from_buf() can throw an exception: check
 					req->url_.from_buf(at, len);
-					printf("req->url: %x\n", &req->url_);
 
 					return 0;
 				};
 				parser_settings_.on_headers_complete = [](http_parser* parser) {
-					printf("on_headers_complete\n");
-
 					auto req = reinterpret_cast<request*>(parser->data);
 
 					//return 0;
 					return 1; // do not parse body
 				};
 				parser_settings_.on_message_complete = [](http_parser* parser) {
-					printf("on_message_complete\n");
-
 					auto req = reinterpret_cast<request*>(parser->data);
 
 					// parsing finished!
 					std::shared_ptr<response> res(new response(req->socket_));
-
-					printf("%x req->callback_=%x\n", req, req->callback_);
 
 					req->callback_(*req, *res);
 
@@ -335,12 +328,12 @@ namespace native
 				: socket_(new tcp)
 				, listen_callback_(listen_callback)
 			{
-				printf("http() %x\n", this);
+				//printf("http() %x\n", this);
 			}
 
 			virtual ~http()
 			{
-				printf("~http() %x\n", this);
+				//printf("~http() %x\n", this);
 
 				if(socket_)
 				{
@@ -355,10 +348,6 @@ namespace native
 
 				return socket_->listen([=](int status) {
 					// TODO: error check - test if status is not 0
-
-					printf("listen() this=%x\n", this);
-					printf("listen() socket=%x\n", socket_.get());
-					printf("listen() callback=%x\n", listen_callback_);
 
 					auto req = new request(socket_.get(), listen_callback_);
 					return req->parse();

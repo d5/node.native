@@ -158,7 +158,7 @@ namespace native
 			handle(T* x)
 				: uv_handle_(reinterpret_cast<uv_handle_t*>(x))
 			{
-				printf("handle(): %x\n", this);
+				//printf("handle(): %x\n", this);
 				assert(uv_handle_);
 
 				uv_handle_->data = new callbacks();
@@ -167,14 +167,14 @@ namespace native
 
 			virtual ~handle()
 			{
-				printf("~handle(): %x\n", this);
+				//printf("~handle(): %x\n", this);
 				uv_handle_ = nullptr;
 			}
 
 			handle(const handle& h)
 				: uv_handle_(h.uv_handle_)
 			{
-				printf("handle(const handle&): %x\n", this);
+				//printf("handle(const handle&): %x\n", this);
 			}
 
 		public:
@@ -189,10 +189,10 @@ namespace native
 			template<typename F>
 			void close(F callback)
 			{
-				callbacks::store(get(), cid_close, callback);
+				callbacks::store(get()->data, cid_close, callback);
 				uv_close(get(),
 					[](uv_handle_t* h) {
-						callbacks::invoke<F>(h, cid_close);
+						callbacks::invoke<F>(h->data, cid_close);
 						_delete_handle(h);
 					});
 			}
@@ -227,10 +227,10 @@ namespace native
 			template<typename F>
 			bool listen(F callback, int backlog=128)
 			{
-				callbacks::store(get(), cid_listen, callback);
+				callbacks::store(get()->data, cid_listen, callback);
 				return uv_listen(get<uv_stream_t>(), backlog,
 					[](uv_stream_t* s, int status) {
-						callbacks::invoke<F>(s, cid_listen, status);
+						callbacks::invoke<F>(s->data, cid_listen, status);
 					}) == 0;
 			}
 
@@ -243,7 +243,7 @@ namespace native
 			template<typename F>
 			bool read_start(F callback)
 			{
-				callbacks::store(get(), cid_read_start, callback);
+				callbacks::store(get()->data, cid_read_start, callback);
 
 				return uv_read_start(get<uv_stream_t>(),
 					[](uv_handle_t*, size_t suggested_size){
@@ -253,14 +253,14 @@ namespace native
 						if(nread < 0)
 						{
 							assert(uv_last_error(s->loop).code == UV_EOF);
-							callbacks::invoke<F>(s,
+							callbacks::invoke<F>(s->data,
 								cid_read_start,
 								nullptr,
 								static_cast<int>(nread));
 						}
 						else if(nread >= 0)
 						{
-							callbacks::invoke<F>(s,
+							callbacks::invoke<F>(s->data,
 								cid_read_start,
 								buf.base,
 								static_cast<int>(nread));

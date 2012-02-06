@@ -21,11 +21,11 @@ namespace native
 			public:
 				callback_object_base()
 				{
-					printf("callback_object_base(): %x\n", this);
+					//printf("callback_object_base(): %x\n", this);
 				}
 				virtual ~callback_object_base()
 				{
-					printf("~callback_object_base(): %x\n", this);
+					//printf("~callback_object_base(): %x\n", this);
 				}
 			};
 
@@ -37,12 +37,12 @@ namespace native
 				callback_object(const callback_t& callback, void* data)
 					: callback_(callback), data_(data)
 				{
-					printf("callback_object<>(): %x\n", this);
+					//printf("callback_object<>(): %x\n", this);
 				}
 
 				virtual ~callback_object()
 				{
-					printf("~callback_object<>(): %x\n", this);
+					//printf("~callback_object<>(): %x\n", this);
 				}
 
 			public:
@@ -66,27 +66,27 @@ namespace native
 			callbacks()
 				: lut_(cid_max)
 			{
-				printf("callbacks(): %x\n", this);
+				//printf("callbacks(): %x\n", this);
 			}
 			~callbacks()
 			{
-				printf("~callbacks(): %x\n", this);
+				//printf("~callbacks(): %x\n", this);
 				for(auto i:lut_) {
 					delete i;
 				}
 				lut_.clear();
 			}
 
-			template<typename callback_t, typename T>
-			static void store(T* target, callback_id cid, const callback_t& callback, void* data=nullptr)
+			template<typename callback_t>
+			static void store(void* target, callback_id cid, const callback_t& callback, void* data=nullptr)
 			{
-				reinterpret_cast<callbacks*>(target->data)->lut_[cid] = new callback_object<callback_t>(callback, data);
+				reinterpret_cast<callbacks*>(target)->lut_[cid] = new callback_object<callback_t>(callback, data);
 			}
 
-			template<typename callback_t, typename T, typename ...A>
-			static void invoke(T* target, callback_id cid, A&& ... args)
+			template<typename callback_t, typename ...A>
+			static void invoke(void* target, callback_id cid, A&& ... args)
 			{
-				auto x = dynamic_cast<callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target->data)->lut_[cid]);
+				auto x = dynamic_cast<callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid]);
 				assert(x);
 				x->invoke(args...);
 			}
