@@ -1,5 +1,9 @@
-#ifndef CALLBACK_H
-#define CALLBACK_H
+#ifndef __CALLBACK_H__
+#define __CALLBACK_H__
+
+#include <utility>
+#include <vector>
+#include "base.h"
 
 namespace native
 {
@@ -58,8 +62,6 @@ namespace native
 			};
 		}
 
-		using namespace callback_serialization;
-
 		class callbacks
 		{
 		public:
@@ -80,19 +82,19 @@ namespace native
 			template<typename callback_t>
 			static void store(void* target, callback_id cid, const callback_t& callback, void* data=nullptr)
 			{
-				reinterpret_cast<callbacks*>(target)->lut_[cid] = new callback_object<callback_t>(callback, data);
+				reinterpret_cast<callbacks*>(target)->lut_[cid] = new callback_serialization::callback_object<callback_t>(callback, data);
 			}
 
 			template<typename callback_t, typename ...A>
 			static void invoke(void* target, callback_id cid, A&& ... args)
 			{
-				auto x = dynamic_cast<callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid]);
+				auto x = dynamic_cast<callback_serialization::callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid]);
 				assert(x);
 				x->invoke(args...);
 			}
 
 		private:
-			std::vector<callback_object_base*> lut_;
+			std::vector<callback_serialization::callback_object_base*> lut_;
 		};
 	}
 }

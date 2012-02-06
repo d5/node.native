@@ -1,5 +1,5 @@
-#ifndef HTTP_H
-#define HTTP_H
+#ifndef __HTTP_H__
+#define __HTTP_H__
 
 #include <cassert>
 #include <map>
@@ -7,9 +7,10 @@
 #include <sstream>
 #include <http_parser.h>
 #include "base.h"
+#include "handle.h"
+#include "net.h"
 #include "text.h"
 
-using namespace native::base;
 
 namespace native
 {
@@ -21,18 +22,20 @@ namespace native
 
 		typedef void (*listen_callback_t)(request&, response&);
 
-		class url_parse_exception { };
-		class response_exception
+		class url_parse_exception : public native::base::exception
 		{
 		public:
-			response_exception(const std::string& message)
-				: message_(message)
+			url_parse_exception(const std::string& message="Failed to parse URL.")
+				: native::base::exception(message)
 			{}
+		};
 
-			const std::string& message() const { return message_; }
-
-		private:
-			std::string message_;
+		class response_exception : public native::base::exception
+		{
+		public:
+			response_exception(const std::string& message="HTTP respsonse error.")
+				: native::base::exception(message)
+			{}
 		};
 
 		class url_obj
@@ -134,7 +137,7 @@ namespace native
 			friend class request;
 
 		private:
-			response(tcp* client)
+			response(native::net::tcp* client)
 				: socket_(client)
 				, headers_()
 				, status_(200)
@@ -232,8 +235,8 @@ namespace native
 			}
 
 		private:
-			tcp* socket_;
-			std::map<std::string, std::string, native::ci_less> headers_;
+			native::net::tcp* socket_;
+			std::map<std::string, std::string, native::text::ci_less> headers_;
 			int status_;
 		};
 
@@ -242,8 +245,8 @@ namespace native
 			friend class http;
 
 		private:
-			request(tcp* server, listen_callback_t callback)
-				: socket_(new tcp)
+			request(native::net::tcp* server, listen_callback_t callback)
+				: socket_(new native::net::tcp)
 				, callback_(callback)
 				, parser_()
 				, parser_settings_()
@@ -309,7 +312,7 @@ namespace native
 			const url_obj& url() const { return url_; }
 
 		private:
-			tcp* socket_;
+			native::net::tcp* socket_;
 			listen_callback_t callback_;
 
 			http_parser parser_;
@@ -325,7 +328,7 @@ namespace native
 		{
 		public:
 			http(listen_callback_t listen_callback)
-				: socket_(new tcp)
+				: socket_(new native::net::tcp)
 				, listen_callback_(listen_callback)
 			{
 				//printf("http() %x\n", this);
@@ -346,16 +349,18 @@ namespace native
 			{
 				if(!socket_->bind(ip, port)) return false;
 
-				return socket_->listen([=](int status) {
+				if(!socket_->listen([=](int status) {
 					// TODO: error check - test if status is not 0
 
 					auto req = new request(socket_.get(), listen_callback_);
-					return req->parse();
-				});
+					req->parse();
+				})) return false;
+
+				return native::base::loop::run_default();
 			}
 
 		private:
-			std::shared_ptr<tcp> socket_;
+			std::shared_ptr<native::net::tcp> socket_;
 			listen_callback_t listen_callback_;
 		};
 
