@@ -10,6 +10,8 @@ namespace native
 {
 	namespace base
 	{
+		typedef uv_stream_info_t stream_info;
+
 		class stream : public handle
 		{
 		public:
@@ -17,15 +19,6 @@ namespace native
 			stream(T* x)
 				: handle(x)
 			{ }
-
-			/*
-			int shutdown(shutdown_cb cb)
-			{
-				auto req = new uv_shutdown_t;
-				req->data = this;
-				return uv_shutdown(req, get<uv_stream_t>(), cb);
-			}
-			*/
 
 			template<typename F>
 			bool listen(F callback, int backlog=128)
@@ -97,19 +90,34 @@ namespace native
 			template<typename F>
 			bool write(const char* buf, int len, F callback)
 			{
-				// TODO: const_cast<>!!!
 				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), len } };
+				callbacks::store(get()->data, uv_cid_write, callback);
+				return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
+					callbacks::invoke<F>(req->handle->data, uv_cid_write, status);
+				}) == 0;
+			}
 
-				callbacks::store(get(), uv_cid_write, callback);
-
-				uv_write_t* w = new uv_write_t;
-				return uv_write(w, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
-					callbacks::invoke<F>(req->handle, uv_cid_write, status);
+			template<typename callback_t>
+			bool shutdown(callback_t callback)
+			{
+				callbacks::store(get()->data, uv_cid_shutdown, callback);
+				return uv_shutdown(new uv_shutdown_t, get<uv_stream_t>(), [](uv_shutdown_t* req, int status) {
+					callbacks::invoke<callback_t>(req->handle->data, uv_cid_shutdown, status);
 				}) == 0;
 			}
 
 			// TODO: implement write2()
 			//int write2(buf& b, stream& send_handle, write_cb cb);
+
+			bool export_to(stream_info* info)
+			{
+				return uv_export(get<uv_stream_t>(), info) == 0;
+			}
+
+			bool import_from(stream_info* info)
+			{
+				return uv_import(get<uv_stream_t>(), info) == 0;
+			}
 		};
 	}
 }
