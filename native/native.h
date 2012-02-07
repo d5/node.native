@@ -6,5 +6,6 @@
 #include "error.h"
 #include "tcp.h"
 #include "http.h"
+#include "fs.h"
 
 #endif
