@@ -165,7 +165,11 @@ namespace native
 				response_text << body;
 
 				auto str = response_text.str();
-				return socket_->write(str.c_str(), static_cast<int>(str.length()), [=](int status) {
+				return socket_->write(str.c_str(), static_cast<int>(str.length()), [=](error e) {
+				    if(e)
+				    {
+				        // TODO: handle error
+				    }
 					// clean up
 					client_.reset();
 				});
@@ -468,11 +472,16 @@ namespace native
 			{
 				if(!socket_->bind(ip, port)) return false;
 
-				if(!socket_->listen([=](int status) {
-					// TODO: error check - test if status is not 0
-
-					auto client = new client_context(socket_.get());
-					client->parse(callback);
+				if(!socket_->listen([=](error e) {
+				    if(e)
+				    {
+				        // TODO: handle client connection error
+				    }
+				    else
+				    {
+                        auto client = new client_context(socket_.get());
+                        client->parse(callback);
+				    }
 				})) return false;
 
 				return true;

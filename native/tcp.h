@@ -54,7 +54,7 @@ namespace native
             {
                 callbacks::store(get()->data, native::internal::uv_cid_connect, callback);
                 return uv_tcp_connect(new uv_connect_t, get<uv_tcp_t>(), to_ip4_addr(ip, port), [](uv_connect_t* req, int status) {
-                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_connect, status);
+                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_connect, status?uv_last_error(req->handle->loop):error());
                     delete req;
                 }) == 0;
             }
@@ -64,7 +64,7 @@ namespace native
             {
                 callbacks::store(get()->data, native::internal::uv_cid_connect6, callback);
                 return uv_tcp_connect6(new uv_connect_t, get<uv_tcp_t>(), to_ip6_addr(ip, port), [](uv_connect_t* req, int status) {
-                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_connect6, status);
+                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_connect6, status?uv_last_error(req->handle->loop):error());
                     delete req;
                 }) == 0;
             }
