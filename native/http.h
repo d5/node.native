@@ -1,9 +1,6 @@
 #ifndef __HTTP_H__
 #define __HTTP_H__
 
-#include <cassert>
-#include <map>
-#include <memory>
 #include <sstream>
 #include <http_parser.h>
 #include "base.h"
@@ -16,19 +13,19 @@ namespace native
 {
 	namespace http
 	{
-		class url_parse_exception : public native::base::exception
+		class url_parse_exception : public native::exception
 		{
 		public:
 			url_parse_exception(const std::string& message="Failed to parse URL.")
-				: native::base::exception(message)
+				: native::exception(message)
 			{}
 		};
 
-		class response_exception : public native::base::exception
+		class response_exception : public native::exception
 		{
 		public:
 			response_exception(const std::string& message="HTTP respsonse error.")
-				: native::base::exception(message)
+				: native::exception(message)
 			{}
 		};
 
@@ -296,7 +293,7 @@ namespace native
 				, parser_settings_()
 				, request_(nullptr)
 				, response_(nullptr)
-				, callback_lut_(new native::base::callbacks(1))
+				, callback_lut_(new callbacks(1))
 			{
 				//printf("request() %x callback_=%x\n", this, callback_);
 				assert(server);
@@ -348,7 +345,7 @@ namespace native
 				parser_.data = this;
 
 				// store callback object
-				native::base::callbacks::store(callback_lut_, 0, callback);
+				callbacks::store(callback_lut_, 0, callback);
 
 				parser_settings_.on_url = [](http_parser* parser, const char *at, size_t len) {
 					auto client = reinterpret_cast<client_context*>(parser->data);
@@ -412,7 +409,7 @@ namespace native
 				parser_settings_.on_message_complete = [](http_parser* parser) {
 					auto client = reinterpret_cast<client_context*>(parser->data);
 					// invoke stored callback object
-					native::base::callbacks::invoke<callback_t>(client->callback_lut_, 0, *client->request_, *client->response_);
+					callbacks::invoke<callback_t>(client->callback_lut_, 0, *client->request_, *client->response_);
 					return 0;
 				};
 
@@ -434,7 +431,7 @@ namespace native
 			request* request_;
 			response* response_;
 
-			native::base::callbacks* callback_lut_;
+			callbacks* callback_lut_;
 		};
 
 		class http
@@ -457,6 +454,15 @@ namespace native
 			}
 
 		public:
+
+			template<typename callback_t>
+			static std::shared_ptr<http> create_server(const std::string& ip, int port, callback_t callback)
+			{
+			    auto server = std::shared_ptr<http>(new http);
+			    if(server->listen(ip, port, callback)) return server;
+			    return nullptr;
+			}
+
 			template<typename callback_t>
 			bool listen(const std::string& ip, int port, callback_t callback)
 			{

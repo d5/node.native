@@ -1,7 +1,6 @@
 #ifndef __HANDLE_H__
 #define __HANDLE_H__
 
-#include <cassert>
 #include "base.h"
 #include "callback.h"
 
@@ -23,7 +22,7 @@ namespace native
 				//printf("handle(): %x\n", this);
 				assert(uv_handle_);
 
-				uv_handle_->data = new callbacks(uv_cid_max);
+				uv_handle_->data = new callbacks(native::internal::uv_cid_max);
 				assert(uv_handle_->data);
 			}
 
@@ -51,10 +50,10 @@ namespace native
 			template<typename callback_t>
 			void close(callback_t callback)
 			{
-				callbacks::store(get()->data, uv_cid_close, callback);
+				callbacks::store(get()->data, native::internal::uv_cid_close, callback);
 				uv_close(get(),
 					[](uv_handle_t* h) {
-						callbacks::invoke<callback_t>(h->data, uv_cid_close);
+						callbacks::invoke<callback_t>(h->data, native::internal::uv_cid_close);
 						_delete_handle(h);
 					});
 			}

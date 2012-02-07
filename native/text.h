@@ -1,8 +1,8 @@
 #ifndef __TEXT_H__
 #define __TEXT_H__
 
-#include <string>
 #include <functional>
+#include "base.h"
 
 namespace native
 {

@@ -1,7 +1,6 @@
 #ifndef __STREAM_H__
 #define __STREAM_H__
 
-#include <cassert>
 #include "base.h"
 #include "handle.h"
 #include "callback.h"
@@ -23,10 +22,10 @@ namespace native
 			template<typename callback_t>
 			bool listen(callback_t callback, int backlog=128)
 			{
-				callbacks::store(get()->data, uv_cid_listen, callback);
+				callbacks::store(get()->data, native::internal::uv_cid_listen, callback);
 				return uv_listen(get<uv_stream_t>(), backlog,
 					[](uv_stream_t* s, int status) {
-						callbacks::invoke<callback_t>(s->data, uv_cid_listen, status);
+						callbacks::invoke<callback_t>(s->data, native::internal::uv_cid_listen, status);
 					}) == 0;
 			}
 
@@ -44,7 +43,7 @@ namespace native
 			template<int max_alloc_size, typename F>
 			bool read_start(F callback)
 			{
-				callbacks::store(get()->data, uv_cid_read_start, callback);
+				callbacks::store(get()->data, native::internal::uv_cid_read_start, callback);
 
 				return uv_read_start(get<uv_stream_t>(),
 					[](uv_handle_t*, size_t suggested_size){
@@ -63,14 +62,14 @@ namespace native
 						{
 							assert(uv_last_error(s->loop).code == UV_EOF);
 							callbacks::invoke<F>(s->data,
-								uv_cid_read_start,
+							        native::internal::uv_cid_read_start,
 								nullptr,
 								static_cast<int>(nread));
 						}
 						else if(nread >= 0)
 						{
 							callbacks::invoke<F>(s->data,
-								uv_cid_read_start,
+							        native::internal::uv_cid_read_start,
 								buf.base,
 								static_cast<int>(nread));
 						}
@@ -86,24 +85,45 @@ namespace native
 			// TODO: implement read2_start()
 			//int read2_start(alloc_cb a, read2_cb r) { return uv_read2_start(get<uv_stream_t>(), a, r); }
 
-			// TODO: add overloading that accepts std::vector<> or std::string<>
 			template<typename callback_t>
 			bool write(const char* buf, int len, callback_t callback)
 			{
 				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), len } };
-				callbacks::store(get()->data, uv_cid_write, callback);
+				callbacks::store(get()->data, native::internal::uv_cid_write, callback);
 				return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
-					callbacks::invoke<callback_t>(req->handle->data, uv_cid_write, status);
+					callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_write, status);
 					delete req;
 				}) == 0;
 			}
 
 			template<typename callback_t>
+            bool write(const std::string& buf, callback_t callback)
+            {
+                uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf.c_str()), buf.length()} };
+                callbacks::store(get()->data, native::internal::uv_cid_write, callback);
+                return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
+                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_write, status);
+                    delete req;
+                }) == 0;
+            }
+
+            template<typename callback_t>
+            bool write(const std::vector<char>& buf, callback_t callback)
+            {
+                uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(&buf[0]), buf.size() } };
+                callbacks::store(get()->data, native::internal::uv_cid_write, callback);
+                return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
+                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_write, status);
+                    delete req;
+                }) == 0;
+            }
+
+			template<typename callback_t>
 			bool shutdown(callback_t callback)
 			{
-				callbacks::store(get()->data, uv_cid_shutdown, callback);
+				callbacks::store(get()->data, native::internal::uv_cid_shutdown, callback);
 				return uv_shutdown(new uv_shutdown_t, get<uv_stream_t>(), [](uv_shutdown_t* req, int status) {
-					callbacks::invoke<callback_t>(req->handle->data, uv_cid_shutdown, status);
+					callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_shutdown, status);
 					delete req;
 				}) == 0;
 			}
