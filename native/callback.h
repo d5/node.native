@@ -77,7 +77,7 @@ namespace native
         }
 
         template<typename callback_t>
-        static void get_data(void* target, int cid)
+        static void* get_data(void* target, int cid)
         {
             return reinterpret_cast<callbacks*>(target)->lut_[cid]->get_data();
         }
