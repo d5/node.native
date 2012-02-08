@@ -29,13 +29,13 @@ namespace native
             large_large = O_LARGEFILE,
         };
 
-        template<typename callback_t> // void(file_handle fd, error e)
-        bool open(const char* path, open_flag flags, int mode, callback_t callback)
+        template<typename callback_t> // void(native::fs::file_handle fd, error e)
+        bool open(const std::string& path, open_flag flags, int mode, callback_t callback)
         {
             auto req = new uv_fs_t;
             req->data = new callbacks(1);
             callbacks::store(req->data, 0, callback);
-            return uv_fs_open(uv_default_loop(), req, path, flags, mode, [](uv_fs_t* req){
+            return uv_fs_open(uv_default_loop(), req, path.c_str(), flags, mode, [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_OPEN);
 
                 if(req->errorno)
@@ -59,33 +59,34 @@ namespace native
             })==0;
         }
 
-        template<typename callback_t> // void(const char* buf, int nread, error e)
-        bool read(file_handle f, void* buf, size_t len, off_t offset, callback_t callback)
+        template<typename callback_t> // void(const std::string& str, error e)
+        bool read(file_handle fd, size_t len, off_t offset, callback_t callback)
         {
             auto req = new uv_fs_t;
+            auto buf = new char[len];
             req->data = new callbacks(1);
             callbacks::store(req->data, 0, callback, buf);
-            return uv_fs_read(uv_default_loop(), req, f, buf, len, offset, [](uv_fs_t* req){
+            return uv_fs_read(uv_default_loop(), req, fd, buf, len, offset, [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_READ);
 
                 if(req->errorno)
                 {
                     // system error
-                    callbacks::invoke<callback_t>(req->data, 0, nullptr, 0, error(uv_last_error(uv_default_loop())));
+                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(uv_last_error(uv_default_loop())));
                 }
                 else if(req->result == 0)
                 {
                     // EOF
-                    callbacks::invoke<callback_t>(req->data, 0, nullptr, 0, error(UV_EOF));
+                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(UV_EOF));
                 }
                 else
                 {
                     callbacks::invoke<callback_t>(req->data, 0,
-                        reinterpret_cast<const char*>(callbacks::get_data<callback_t>(req->data, 0)),
-                        req->result,
+                        std::string(reinterpret_cast<const char*>(callbacks::get_data<callback_t>(req->data, 0)), req->result),
                         error());
                 }
 
+                delete[] reinterpret_cast<const char*>(callbacks::get_data<callback_t>(req->data, 0));
                 delete reinterpret_cast<callbacks*>(req->data);
                 uv_fs_req_cleanup(req);
                 delete req;
@@ -94,13 +95,11 @@ namespace native
 
         namespace internal
         {
-            struct rte_data
+            struct rte_context
             {
                 fs::file_handle file;
-
-                const static int buflen = 1024;
+                const static int buflen = 32;
                 char buf[buflen];
-
                 std::string result;
             };
 
@@ -109,7 +108,7 @@ namespace native
             {
                 assert(req->fs_type == UV_FS_READ);
 
-                auto x = reinterpret_cast<rte_data*>(callbacks::get_data<callback_t>(req->data, 0));
+                auto ctx = reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
 
                 if(req->errorno)
                 {
@@ -117,29 +116,32 @@ namespace native
                     callbacks::invoke<callback_t>(req->data, 0, std::string(), error(uv_last_error(uv_default_loop())));
 
                     uv_fs_req_cleanup(req);
+                    delete reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
                     delete reinterpret_cast<callbacks*>(req->data);
                     delete req;
                 }
                 else if(req->result == 0)
                 {
                     // EOF
-                    callbacks::invoke<callback_t>(req->data, 0, x->result, error());
+                    callbacks::invoke<callback_t>(req->data, 0, ctx->result, error());
 
                     uv_fs_req_cleanup(req);
+                    delete reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
                     delete reinterpret_cast<callbacks*>(req->data);
                     delete req;
                 }
                 else
                 {
-                    x->result.append(std::string(x->buf, req->result));
+                    ctx->result.append(std::string(ctx->buf, req->result));
 
                     uv_fs_req_cleanup(req);
 
-                    if(uv_fs_read(uv_default_loop(), req, x->file, x->buf, rte_data::buflen, x->result.length(), rte_cb<callback_t>))
+                    if(uv_fs_read(uv_default_loop(), req, ctx->file, ctx->buf, rte_context::buflen, ctx->result.length(), rte_cb<callback_t>))
                     {
                         callbacks::invoke<callback_t>(req->data, 0, std::string(), error(uv_last_error(uv_default_loop())));
 
                         uv_fs_req_cleanup(req);
+                        delete reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
                         delete reinterpret_cast<callbacks*>(req->data);
                         delete req;
                     }
@@ -148,16 +150,16 @@ namespace native
         }
 
         template<typename callback_t> // void(const std::string& str, error e)
-        bool read_to_end(file_handle f, callback_t callback)
+        bool read_to_end(file_handle fd, callback_t callback)
         {
-            auto x = new internal::rte_data;
-            x->file = f;
+            auto ctx = new internal::rte_context;
+            ctx->file = fd;
 
             auto req = new uv_fs_t;
             req->data = new callbacks(1);
-            callbacks::store(req->data, 0, callback, x);
+            callbacks::store(req->data, 0, callback, ctx);
 
-            return uv_fs_read(uv_default_loop(), req, f, x->buf, internal::rte_data::buflen, 0, internal::rte_cb<callback_t>) == 0;
+            return uv_fs_read(uv_default_loop(), req, fd, ctx->buf, internal::rte_context::buflen, 0, internal::rte_cb<callback_t>) == 0;
         }
     }
 
@@ -174,10 +176,9 @@ namespace native
                 }
                 else
                 {
-                    if(!fs::read_to_end(f, [=](const std::string& str, error e){
-                        callback(str, e);
-                    }))
+                    if(!fs::read_to_end(f, callback))
                     {
+                        // failed to initiate read_to_end()
                         callback(std::string(), error(uv_last_error(uv_default_loop())));
                     }
                 }
