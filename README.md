@@ -1,8 +1,8 @@
 # node.native 
 
-<em>node.native</em> is a [C++11](http://en.wikipedia.org/wiki/C%2B%2B11) (aka C++0x) port for [node.js](https://github.com/joyent/node). 
+<b>node.native</b> is a [C++11](http://en.wikipedia.org/wiki/C%2B%2B11) (aka C++0x) port for [node.js](https://github.com/joyent/node). 
 
-Note: <b>node.native</b> is <em>under heavy development</em>.
+Please note that <b>node.native</b> project is <em>under heavy development</em>: currently experimental.
 
 ## Sample code
 
@@ -37,6 +37,8 @@ then,
 
     make
 
-That's all.
-
 I tested the code on Ubuntu 11.10 and GCC 4.6.1.
+
+## Todos
+
+- Match class and function names to those of Node.js as best as possible. 
