@@ -14,23 +14,21 @@ namespace native
     {
         typedef uv_file file_handle;
 
-        enum open_flag
-        {
-            read_only = O_RDONLY,
-            write_only = O_WRONLY,
-            read_write = O_RDWR,
-            append = O_APPEND,
-            create = O_CREAT,
-            excl = O_EXCL,
-            truncate = O_TRUNC,
-            no_follow = O_NOFOLLOW,
-            directory = O_DIRECTORY,
-            no_access_time = O_NOATIME,
-            large_large = O_LARGEFILE,
-        };
+        static const int read_only = O_RDONLY;
+        static const int write_only = O_WRONLY;
+        static const int read_write = O_RDWR;
+        static const int append = O_APPEND;
+        static const int create = O_CREAT;
+        static const int excl = O_EXCL;
+        static const int truncate = O_TRUNC;
+        static const int no_follow = O_NOFOLLOW;
+        static const int directory = O_DIRECTORY;
+        static const int no_access_time = O_NOATIME;
+        static const int large_large = O_LARGEFILE;
+
 
         template<typename callback_t> // void(native::fs::file_handle fd, error e)
-        bool open(const std::string& path, open_flag flags, int mode, callback_t callback)
+        bool open(const std::string& path, int flags, int mode, callback_t callback)
         {
             auto req = new uv_fs_t;
             req->data = new callbacks(1);
@@ -40,8 +38,7 @@ namespace native
 
                 if(req->errorno)
                 {
-                    // system error
-                    callbacks::invoke<callback_t>(req->data, 0, file_handle(-1), error(uv_last_error(uv_default_loop())));
+                    callbacks::invoke<callback_t>(req->data, 0, file_handle(-1), error(req->errorno));
                 }
                 else if(req->result < 0)
                 {
@@ -72,7 +69,7 @@ namespace native
                 if(req->errorno)
                 {
                     // system error
-                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(uv_last_error(uv_default_loop())));
+                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(req->errorno));
                 }
                 else if(req->result == 0)
                 {
@@ -87,6 +84,34 @@ namespace native
                 }
 
                 delete[] reinterpret_cast<const char*>(callbacks::get_data<callback_t>(req->data, 0));
+                delete reinterpret_cast<callbacks*>(req->data);
+                uv_fs_req_cleanup(req);
+                delete req;
+            })==0;
+        }
+
+        template<typename callback_t> // void(int nwritten, error e)
+        bool write(file_handle fd, const char* buf, size_t len, off_t offset, callback_t callback)
+        {
+            auto req = new uv_fs_t;
+            req->data = new callbacks(1);
+            callbacks::store(req->data, 0, callback);
+
+            // TODO: const_cast<> !!
+            return uv_fs_write(uv_default_loop(), req, fd, const_cast<char*>(buf), len, offset, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_WRITE);
+
+                if(req->errorno)
+                {
+                    // system error
+                    callbacks::invoke<callback_t>(req->data, 0, 0, error(req->errorno));
+                }
+                else
+                {
+
+                    callbacks::invoke<callback_t>(req->data, 0, req->result, error());
+                }
+
                 delete reinterpret_cast<callbacks*>(req->data);
                 uv_fs_req_cleanup(req);
                 delete req;
@@ -113,7 +138,7 @@ namespace native
                 if(req->errorno)
                 {
                     // system error
-                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(uv_last_error(uv_default_loop())));
+                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(req->errorno));
 
                     uv_fs_req_cleanup(req);
                     delete reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
@@ -169,14 +194,14 @@ namespace native
         template<typename callback_t> // void(const std::string& str, error e)
         static bool read(const std::string& path, callback_t callback)
         {
-            if(!fs::open(path.c_str(), fs::read_only, 0, [=](fs::file_handle f, error e) {
+            if(!fs::open(path.c_str(), fs::read_only, 0, [=](fs::file_handle fd, error e) {
                 if(e)
                 {
                     callback(std::string(), e);
                 }
                 else
                 {
-                    if(!fs::read_to_end(f, callback))
+                    if(!fs::read_to_end(fd, callback))
                     {
                         // failed to initiate read_to_end()
                         callback(std::string(), error(uv_last_error(uv_default_loop())));
@@ -185,10 +210,23 @@ namespace native
             })) return false;
         }
 
-        template<typename callback_t>
+        template<typename callback_t> // void(int nwritten, error e)
         static bool write(const std::string& path, const std::string& str, callback_t callback)
         {
-            return false;
+            if(!fs::open(path.c_str(), fs::write_only|fs::create, 0664, [=](fs::file_handle fd, error e) {
+                if(e)
+                {
+                    callback(0, e);
+                }
+                else
+                {
+                    if(!fs::write(fd, str.c_str(), str.length(), 0, callback))
+                    {
+                        // failed to initiate read_to_end()
+                        callback(0, error(uv_last_error(uv_default_loop())));
+                    }
+                }
+            })) return false;
         }
 
         template<typename callback_t>

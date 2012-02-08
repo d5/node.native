@@ -26,6 +26,7 @@ namespace native
         error() : uv_err_() {}
         error(uv_err_t e) : uv_err_(e) {}
         error(uv_err_code c) : uv_err_{ c, 0 } {}
+        error(int c) : uv_err_{ static_cast<uv_err_code>(c), 0 } { }
         ~error() = default;
 
     public:
