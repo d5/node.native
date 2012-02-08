@@ -26,100 +26,56 @@ namespace native
         static const int no_access_time = O_NOATIME;
         static const int large_large = O_LARGEFILE;
 
-
-        template<typename callback_t> // void(native::fs::file_handle fd, error e)
-        bool open(const std::string& path, int flags, int mode, callback_t callback)
-        {
-            auto req = new uv_fs_t;
-            req->data = new callbacks(1);
-            callbacks::store(req->data, 0, callback);
-            return uv_fs_open(uv_default_loop(), req, path.c_str(), flags, mode, [](uv_fs_t* req){
-                assert(req->fs_type == UV_FS_OPEN);
-
-                if(req->errorno)
-                {
-                    callbacks::invoke<callback_t>(req->data, 0, file_handle(-1), error(req->errorno));
-                }
-                else if(req->result < 0)
-                {
-                    // failed to open
-                    callbacks::invoke<callback_t>(req->data, 0, req->result, error(UV_ENOENT));
-                }
-                else
-                {
-                    callbacks::invoke<callback_t>(req->data, 0, req->result, error());
-                }
-
-                delete reinterpret_cast<callbacks*>(req->data);
-                uv_fs_req_cleanup(req);
-                delete req;
-            })==0;
-        }
-
-        template<typename callback_t> // void(const std::string& str, error e)
-        bool read(file_handle fd, size_t len, off_t offset, callback_t callback)
-        {
-            auto req = new uv_fs_t;
-            auto buf = new char[len];
-            req->data = new callbacks(1);
-            callbacks::store(req->data, 0, callback, buf);
-            return uv_fs_read(uv_default_loop(), req, fd, buf, len, offset, [](uv_fs_t* req){
-                assert(req->fs_type == UV_FS_READ);
-
-                if(req->errorno)
-                {
-                    // system error
-                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(req->errorno));
-                }
-                else if(req->result == 0)
-                {
-                    // EOF
-                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(UV_EOF));
-                }
-                else
-                {
-                    callbacks::invoke<callback_t>(req->data, 0,
-                        std::string(reinterpret_cast<const char*>(callbacks::get_data<callback_t>(req->data, 0)), req->result),
-                        error());
-                }
-
-                delete[] reinterpret_cast<const char*>(callbacks::get_data<callback_t>(req->data, 0));
-                delete reinterpret_cast<callbacks*>(req->data);
-                uv_fs_req_cleanup(req);
-                delete req;
-            })==0;
-        }
-
-        template<typename callback_t> // void(int nwritten, error e)
-        bool write(file_handle fd, const char* buf, size_t len, off_t offset, callback_t callback)
-        {
-            auto req = new uv_fs_t;
-            req->data = new callbacks(1);
-            callbacks::store(req->data, 0, callback);
-
-            // TODO: const_cast<> !!
-            return uv_fs_write(uv_default_loop(), req, fd, const_cast<char*>(buf), len, offset, [](uv_fs_t* req){
-                assert(req->fs_type == UV_FS_WRITE);
-
-                if(req->errorno)
-                {
-                    // system error
-                    callbacks::invoke<callback_t>(req->data, 0, 0, error(req->errorno));
-                }
-                else
-                {
-
-                    callbacks::invoke<callback_t>(req->data, 0, req->result, error());
-                }
-
-                delete reinterpret_cast<callbacks*>(req->data);
-                uv_fs_req_cleanup(req);
-                delete req;
-            })==0;
-        }
-
         namespace internal
         {
+            template<typename callback_t>
+            uv_fs_t* create_req(callback_t callback, void* data=nullptr)
+            {
+                auto req = new uv_fs_t;
+                req->data = new callbacks(1);
+                assert(req->data);
+                callbacks::store(req->data, 0, callback, data);
+
+                return req;
+            }
+
+            template<typename callback_t, typename ...A>
+            void invoke_from_req(uv_fs_t* req, A&& ... args)
+            {
+                callbacks::invoke<callback_t>(req->data, 0, args...);
+            }
+
+            template<typename callback_t, typename data_t>
+            data_t* get_data_from_req(uv_fs_t* req)
+            {
+                return reinterpret_cast<data_t*>(callbacks::get_data<callback_t>(req->data, 0));
+            }
+
+            template<typename callback_t, typename data_t>
+            void delete_req(uv_fs_t* req)
+            {
+                delete reinterpret_cast<data_t*>(callbacks::get_data<callback_t>(req->data, 0));
+                delete reinterpret_cast<callbacks*>(req->data);
+                uv_fs_req_cleanup(req);
+                delete req;
+            }
+
+            template<typename callback_t, typename data_t>
+            void delete_req_arr_data(uv_fs_t* req)
+            {
+                delete[] reinterpret_cast<data_t*>(callbacks::get_data<callback_t>(req->data, 0));
+                delete reinterpret_cast<callbacks*>(req->data);
+                uv_fs_req_cleanup(req);
+                delete req;
+            }
+
+            void delete_req(uv_fs_t* req)
+            {
+                delete reinterpret_cast<callbacks*>(req->data);
+                uv_fs_req_cleanup(req);
+                delete req;
+            }
+
             struct rte_context
             {
                 fs::file_handle file;
@@ -134,26 +90,17 @@ namespace native
                 assert(req->fs_type == UV_FS_READ);
 
                 auto ctx = reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
-
                 if(req->errorno)
                 {
                     // system error
-                    callbacks::invoke<callback_t>(req->data, 0, std::string(), error(req->errorno));
-
-                    uv_fs_req_cleanup(req);
-                    delete reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
-                    delete reinterpret_cast<callbacks*>(req->data);
-                    delete req;
+                    invoke_from_req<callback_t>(req, std::string(), error(req->errorno));
+                    delete_req<callback_t, rte_context>(req);
                 }
                 else if(req->result == 0)
                 {
                     // EOF
-                    callbacks::invoke<callback_t>(req->data, 0, ctx->result, error());
-
-                    uv_fs_req_cleanup(req);
-                    delete reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
-                    delete reinterpret_cast<callbacks*>(req->data);
-                    delete req;
+                    invoke_from_req<callback_t>(req, ctx->result, error());
+                    delete_req<callback_t, rte_context>(req);
                 }
                 else
                 {
@@ -163,15 +110,91 @@ namespace native
 
                     if(uv_fs_read(uv_default_loop(), req, ctx->file, ctx->buf, rte_context::buflen, ctx->result.length(), rte_cb<callback_t>))
                     {
-                        callbacks::invoke<callback_t>(req->data, 0, std::string(), error(uv_last_error(uv_default_loop())));
-
-                        uv_fs_req_cleanup(req);
-                        delete reinterpret_cast<rte_context*>(callbacks::get_data<callback_t>(req->data, 0));
-                        delete reinterpret_cast<callbacks*>(req->data);
-                        delete req;
+                        // failed to initiate uv_fs_read():
+                        invoke_from_req<callback_t>(req, std::string(), error(uv_last_error(uv_default_loop())));
+                        delete_req<callback_t, rte_context>(req);
                     }
                 }
             }
+        }
+
+        template<typename callback_t> // void(native::fs::file_handle fd, error e)
+        bool open(const std::string& path, int flags, int mode, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_open(uv_default_loop(), req, path.c_str(), flags, mode, [](uv_fs_t* req) {
+                assert(req->fs_type == UV_FS_OPEN);
+
+                if(req->errorno) internal::invoke_from_req<callback_t>(req, file_handle(-1), error(req->errorno));
+                else internal::invoke_from_req<callback_t>(req, req->result, error(req->result<0?UV_ENOENT:UV_OK));
+
+                internal::delete_req(req);
+            })) {
+                // failed to initiate uv_fs_open()
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(const std::string& str, error e)
+        bool read(file_handle fd, size_t len, off_t offset, callback_t callback)
+        {
+            auto buf = new char[len];
+            auto req = internal::create_req(callback, buf);
+            if(uv_fs_read(uv_default_loop(), req, fd, buf, len, offset, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_READ);
+
+                if(req->errorno)
+                {
+                    // system error
+                    internal::invoke_from_req<callback_t>(req, std::string(), error(req->errorno));
+                }
+                else if(req->result == 0)
+                {
+                    // EOF
+                    internal::invoke_from_req<callback_t>(req, std::string(), error(UV_EOF));
+                }
+                else
+                {
+                    auto buf = internal::get_data_from_req<callback_t, char>(req);
+                    internal::invoke_from_req<callback_t>(req, std::string(buf, req->result), error());
+                }
+
+                internal::delete_req_arr_data<callback_t, char>(req);
+            })) {
+                // failed to initiate uv_fs_read()
+                internal::delete_req_arr_data<callback_t, char>(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(int nwritten, error e)
+        bool write(file_handle fd, const char* buf, size_t len, off_t offset, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+
+            // TODO: const_cast<> !!
+            if(uv_fs_write(uv_default_loop(), req, fd, const_cast<char*>(buf), len, offset, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_WRITE);
+
+                if(req->errorno)
+                {
+                    internal::invoke_from_req<callback_t>(req, 0, error(req->errorno));
+                }
+                else
+                {
+                    internal::invoke_from_req<callback_t>(req, req->result, error());
+                }
+
+                internal::delete_req(req);
+            })) {
+                // failed to initiate uv_fs_write()
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
         }
 
         template<typename callback_t> // void(const std::string& str, error e)
@@ -179,12 +202,14 @@ namespace native
         {
             auto ctx = new internal::rte_context;
             ctx->file = fd;
+            auto req = internal::create_req(callback, ctx);
 
-            auto req = new uv_fs_t;
-            req->data = new callbacks(1);
-            callbacks::store(req->data, 0, callback, ctx);
-
-            return uv_fs_read(uv_default_loop(), req, fd, ctx->buf, internal::rte_context::buflen, 0, internal::rte_cb<callback_t>) == 0;
+            if(uv_fs_read(uv_default_loop(), req, fd, ctx->buf, internal::rte_context::buflen, 0, internal::rte_cb<callback_t>)) {
+                // failed to initiate uv_fs_read()
+                internal::delete_req<callback_t, internal::rte_context>(req);
+                return false;
+            }
+            return true;
         }
     }
 
