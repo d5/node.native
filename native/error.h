@@ -25,11 +25,13 @@ namespace native
     public:
         error() : uv_err_() {}
         error(uv_err_t e) : uv_err_(e) {}
+        error(uv_err_code c) : uv_err_{ c, 0 } {}
         ~error() = default;
 
     public:
         operator bool() { return uv_err_.code != UV_OK; }
 
+        uv_err_code code() const { return uv_err_.code; }
         const char* name() const { return uv_err_name(uv_err_); }
         const char* str() const { return uv_strerror(uv_err_); }
 
