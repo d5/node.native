@@ -211,6 +211,158 @@ namespace native
             }
             return true;
         }
+
+        template<typename callback_t> // void(error e)
+        bool close(file_handle fd, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_close(uv_default_loop(), req, fd, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_CLOSE);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool unlink(const std::string& path, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_unlink(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_UNLINK);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool mkdir(const std::string& path, int mode, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_mkdir(uv_default_loop(), req, path.c_str(), mode, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_MKDIR);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool rmdir(const std::string& path, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_rmdir(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_RMDIR);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool rename(const std::string& path, const std::string& new_path, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_rename(uv_default_loop(), req, path.c_str(), new_path.c_str(), [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_RENAME);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool chmod(const std::string& path, int mode, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_chmod(uv_default_loop(), req, path.c_str(), mode, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_CHMOD);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool chown(const std::string& path, int uid, int gid, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_chown(uv_default_loop(), req, path.c_str(), uid, gid, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_CHOWN);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+#if 0
+        template<typename callback_t>
+        bool readdir(const std::string& path, int flags, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_readdir(uv_default_loop(), req, path.c_str(), flags, [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_READDIR);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool stat(const std::string& path, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_stat(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_STAT);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename callback_t> // void(error e)
+        bool fstat(const std::string& path, callback_t callback)
+        {
+            auto req = internal::create_req(callback);
+            if(uv_fs_fstat(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
+                assert(req->fs_type == UV_FS_FSTAT);
+                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::delete_req(req);
+            })) {
+                internal::delete_req(req);
+                return false;
+            }
+            return true;
+        }
+#endif
     }
 
     class file
