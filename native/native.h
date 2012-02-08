@@ -8,4 +8,12 @@
 #include "http.h"
 #include "fs.h"
 
+/*!
+ *  @mainpage Documentation
+ *
+ *  @section Introduction
+ *  Project URL: https://github.com/d5/node.native
+ *
+ */
+
 #endif
