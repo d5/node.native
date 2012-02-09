@@ -31,7 +31,7 @@ namespace native
         class callback_object : public callback_object_base
         {
         public:
-            callback_object(const callback_t& callback, void* data)
+            callback_object(const callback_t& callback, void* data=nullptr)
                 : callback_object_base(data)
                 , callback_(callback)
             {
