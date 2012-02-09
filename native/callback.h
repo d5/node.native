@@ -13,11 +13,9 @@ namespace native
             callback_object_base(void* data)
                 : data_(data)
             {
-                //printf("callback_object_base(): %x\n", this);
             }
             virtual ~callback_object_base()
             {
-                //printf("~callback_object_base(): %x\n", this);
             }
 
             void* get_data() { return data_; }
@@ -35,19 +33,17 @@ namespace native
                 : callback_object_base(data)
                 , callback_(callback)
             {
-                //printf("callback_object<>(): %x\n", this);
             }
 
             virtual ~callback_object()
             {
-                //printf("~callback_object<>(): %x\n", this);
             }
 
         public:
             template<typename ...A>
-            void invoke(A&& ... args)
+            typename std::result_of<callback_t(A...)>::type invoke(A&& ... args)
             {
-                callback_(std::forward<A>(args)...);
+                return callback_(std::forward<A>(args)...);
             }
 
         private:
@@ -63,11 +59,9 @@ namespace native
         callbacks(int max_callbacks)
             : lut_(max_callbacks)
         {
-            //printf("callbacks(): %x\n", this);
         }
         ~callbacks()
         {
-            //printf("~callbacks(): %x\n", this);
         }
 
         template<typename callback_t>
@@ -83,11 +77,11 @@ namespace native
         }
 
         template<typename callback_t, typename ...A>
-        static void invoke(void* target, int cid, A&& ... args)
+        static typename std::result_of<callback_t(A...)>::type invoke(void* target, int cid, A&& ... args)
         {
             auto x = dynamic_cast<internal::callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid].get());
             assert(x);
-            x->invoke(args...);
+            return x->invoke(args...);
         }
 
     private:
