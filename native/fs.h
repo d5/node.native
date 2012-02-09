@@ -42,7 +42,7 @@ namespace native
             template<typename callback_t, typename ...A>
             typename std::result_of<callback_t(A...)>::type invoke_from_req(uv_fs_t* req, A&& ... args)
             {
-                return callbacks::invoke<callback_t>(req->data, 0, args...);
+                return callbacks::invoke<callback_t>(req->data, 0, std::forward<A>(args)...);
             }
 
             template<typename callback_t, typename data_t>

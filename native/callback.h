@@ -81,7 +81,7 @@ namespace native
         {
             auto x = dynamic_cast<internal::callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid].get());
             assert(x);
-            return x->invoke(args...);
+            return x->invoke(std::forward<A>(args)...);
         }
 
     private:
