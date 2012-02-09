@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <functional>
 #include <map>
 
 #include <uv.h>
