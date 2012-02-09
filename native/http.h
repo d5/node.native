@@ -444,13 +444,10 @@ namespace native
 			http()
 				: socket_(new native::net::tcp)
 			{
-				//printf("http() %x\n", this);
 			}
 
 			virtual ~http()
 			{
-				//printf("~http() %x\n", this);
-
 				if(socket_)
 				{
 					socket_->close([](){});
@@ -458,7 +455,6 @@ namespace native
 			}
 
 		public:
-
 			template<typename callback_t>
 			static std::shared_ptr<http> create_server(const std::string& ip, int port, callback_t callback)
 			{
