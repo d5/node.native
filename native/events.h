@@ -110,9 +110,35 @@ namespace native
             socket,
             continue_,
             line,
-            death
+            death,
+            debug1,
+            debug2,
         };
     };
+
+#if 0
+    // SAMPLE EXTENSION
+    class class1;
+    template<> struct EventEmitter::callback_type<class1, event::debug1> { typedef std::function<void(int)> type; };
+    template<> struct EventEmitter::callback_type<class1, event::debug2> { typedef std::function<void(int, int)> type; };
+
+    class class1 : public EventEmitter
+    {
+    public:
+        // TODO: addListener() and invokeEvent() are not virtual functions.
+        template<int event_id>
+        void addListener(typename callback_type<class1, event_id>::type callback)
+        {
+            addListener_<class1, event_id>(callback);
+        }
+
+        template<int event_id, typename ...A>
+        void invokeEvent(A&& ... args)
+        {
+            invokeEvent_<class1, event_id>(std::forward<A>(args)...);
+        }
+    };
+#endif
 }
 
 #endif
