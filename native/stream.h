@@ -20,14 +20,12 @@ namespace native
 				: handle(x)
 			{ }
 
-			template<typename callback_t>
-			bool listen(callback_t callback, int backlog=128)
+			bool listen(std::function<void(native::error)> callback, int backlog=128)
 			{
 				callbacks::store(get()->data, native::internal::uv_cid_listen, callback);
-				return uv_listen(get<uv_stream_t>(), backlog,
-					[](uv_stream_t* s, int status) {
-                        callbacks::invoke<callback_t>(s->data, native::internal::uv_cid_listen, status?uv_last_error(s->loop):error());
-					}) == 0;
+				return uv_listen(get<uv_stream_t>(), backlog, [](uv_stream_t* s, int status) {
+                    callbacks::invoke<decltype(callback)>(s->data, native::internal::uv_cid_listen, status?uv_last_error(s->loop):error());
+                }) == 0;
 			}
 
 			bool accept(stream* client)
@@ -35,14 +33,13 @@ namespace native
 				return uv_accept(get<uv_stream_t>(), client->get<uv_stream_t>()) == 0;
 			}
 
-			template<typename F>
-			bool read_start(F callback)
+			bool read_start(std::function<void(const char* buf, ssize_t len)> callback)
 			{
-				return read_start<0, F>(callback);
+				return read_start<0>(callback);
 			}
 
-			template<int max_alloc_size, typename F>
-			bool read_start(F callback)
+			template<int max_alloc_size>
+			bool read_start(std::function<void(const char* buf, ssize_t len)> callback)
 			{
 				callbacks::store(get()->data, native::internal::uv_cid_read_start, callback);
 
@@ -62,17 +59,11 @@ namespace native
 						if(nread < 0)
 						{
 							assert(uv_last_error(s->loop).code == UV_EOF);
-							callbacks::invoke<F>(s->data,
-							        native::internal::uv_cid_read_start,
-							        nullptr,
-							        static_cast<int>(nread));
+							callbacks::invoke<decltype(callback)>(s->data, native::internal::uv_cid_read_start, nullptr, nread);
 						}
 						else if(nread >= 0)
 						{
-							callbacks::invoke<F>(s->data,
-							        native::internal::uv_cid_read_start,
-							        buf.base,
-							        static_cast<int>(nread));
+							callbacks::invoke<decltype(callback)>(s->data, native::internal::uv_cid_read_start, buf.base, nread);
 						}
 						delete buf.base;
 					}) == 0;
@@ -84,53 +75,47 @@ namespace native
 			}
 
 			// TODO: implement read2_start()
-			//int read2_start(alloc_cb a, read2_cb r) { return uv_read2_start(get<uv_stream_t>(), a, r); }
 
-			template<typename callback_t>
-			bool write(const char* buf, int len, callback_t callback)
+			bool write(const char* buf, int len, std::function<void(error)> callback)
 			{
 				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), len } };
 				callbacks::store(get()->data, native::internal::uv_cid_write, callback);
 				return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
-					callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_write, status?uv_last_error(req->handle->loop):error());
+					callbacks::invoke<decltype(callback)>(req->handle->data, native::internal::uv_cid_write, status?uv_last_error(req->handle->loop):error());
 					delete req;
 				}) == 0;
 			}
 
-			template<typename callback_t>
-            bool write(const std::string& buf, callback_t callback)
+			bool write(const std::string& buf, std::function<void(error)> callback)
             {
                 uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf.c_str()), buf.length()} };
                 callbacks::store(get()->data, native::internal::uv_cid_write, callback);
                 return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
-                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_write, status?uv_last_error(req->handle->loop):error());
+                    callbacks::invoke<decltype(callback)>(req->handle->data, native::internal::uv_cid_write, status?uv_last_error(req->handle->loop):error());
                     delete req;
                 }) == 0;
             }
 
-            template<typename callback_t>
-            bool write(const std::vector<char>& buf, callback_t callback)
+            bool write(const std::vector<char>& buf, std::function<void(error)> callback)
             {
                 uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(&buf[0]), buf.size() } };
                 callbacks::store(get()->data, native::internal::uv_cid_write, callback);
                 return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
-                    callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_write, status?uv_last_error(req->handle->loop):error());
+                    callbacks::invoke<decltype(callback)>(req->handle->data, native::internal::uv_cid_write, status?uv_last_error(req->handle->loop):error());
                     delete req;
                 }) == 0;
             }
 
-			template<typename callback_t>
-			bool shutdown(callback_t callback)
+            // TODO: implement write2()
+
+			bool shutdown(std::function<void(error)> callback)
 			{
 				callbacks::store(get()->data, native::internal::uv_cid_shutdown, callback);
 				return uv_shutdown(new uv_shutdown_t, get<uv_stream_t>(), [](uv_shutdown_t* req, int status) {
-					callbacks::invoke<callback_t>(req->handle->data, native::internal::uv_cid_shutdown, status?uv_last_error(req->handle->loop):error());
+					callbacks::invoke<decltype(callback)>(req->handle->data, native::internal::uv_cid_shutdown, status?uv_last_error(req->handle->loop):error());
 					delete req;
 				}) == 0;
 			}
-
-			// TODO: implement write2()
-			//int write2(buf& b, stream& send_handle, write_cb cb);
 
 			bool export_to(stream_info* info)
 			{

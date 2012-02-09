@@ -118,15 +118,14 @@ namespace native
             }
         }
 
-        template<typename callback_t> // void(native::fs::file_handle fd, error e)
-        bool open(const std::string& path, int flags, int mode, callback_t callback)
+        bool open(const std::string& path, int flags, int mode, std::function<void(native::fs::file_handle fd, error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_open(uv_default_loop(), req, path.c_str(), flags, mode, [](uv_fs_t* req) {
                 assert(req->fs_type == UV_FS_OPEN);
 
-                if(req->errorno) internal::invoke_from_req<callback_t>(req, file_handle(-1), error(req->errorno));
-                else internal::invoke_from_req<callback_t>(req, req->result, error(req->result<0?UV_ENOENT:UV_OK));
+                if(req->errorno) internal::invoke_from_req<decltype(callback)>(req, file_handle(-1), error(req->errorno));
+                else internal::invoke_from_req<decltype(callback)>(req, req->result, error(req->result<0?UV_ENOENT:UV_OK));
 
                 internal::delete_req(req);
             })) {
@@ -137,8 +136,7 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(const std::string& str, error e)
-        bool read(file_handle fd, size_t len, off_t offset, callback_t callback)
+        bool read(file_handle fd, size_t len, off_t offset, std::function<void(const std::string& str, error e)> callback)
         {
             auto buf = new char[len];
             auto req = internal::create_req(callback, buf);
@@ -148,30 +146,29 @@ namespace native
                 if(req->errorno)
                 {
                     // system error
-                    internal::invoke_from_req<callback_t>(req, std::string(), error(req->errorno));
+                    internal::invoke_from_req<decltype(callback)>(req, std::string(), error(req->errorno));
                 }
                 else if(req->result == 0)
                 {
                     // EOF
-                    internal::invoke_from_req<callback_t>(req, std::string(), error(UV_EOF));
+                    internal::invoke_from_req<decltype(callback)>(req, std::string(), error(UV_EOF));
                 }
                 else
                 {
-                    auto buf = internal::get_data_from_req<callback_t, char>(req);
-                    internal::invoke_from_req<callback_t>(req, std::string(buf, req->result), error());
+                    auto buf = internal::get_data_from_req<decltype(callback), char>(req);
+                    internal::invoke_from_req<decltype(callback)>(req, std::string(buf, req->result), error());
                 }
 
-                internal::delete_req_arr_data<callback_t, char>(req);
+                internal::delete_req_arr_data<decltype(callback), char>(req);
             })) {
                 // failed to initiate uv_fs_read()
-                internal::delete_req_arr_data<callback_t, char>(req);
+                internal::delete_req_arr_data<decltype(callback), char>(req);
                 return false;
             }
             return true;
         }
 
-        template<typename callback_t> // void(int nwritten, error e)
-        bool write(file_handle fd, const char* buf, size_t len, off_t offset, callback_t callback)
+        bool write(file_handle fd, const char* buf, size_t len, off_t offset, std::function<void(int nwritten, error e)> callback)
         {
             auto req = internal::create_req(callback);
 
@@ -181,11 +178,11 @@ namespace native
 
                 if(req->errorno)
                 {
-                    internal::invoke_from_req<callback_t>(req, 0, error(req->errorno));
+                    internal::invoke_from_req<decltype(callback)>(req, 0, error(req->errorno));
                 }
                 else
                 {
-                    internal::invoke_from_req<callback_t>(req, req->result, error());
+                    internal::invoke_from_req<decltype(callback)>(req, req->result, error());
                 }
 
                 internal::delete_req(req);
@@ -197,28 +194,26 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(const std::string& str, error e)
-        bool read_to_end(file_handle fd, callback_t callback)
+        bool read_to_end(file_handle fd, std::function<void(const std::string& str, error e)> callback)
         {
             auto ctx = new internal::rte_context;
             ctx->file = fd;
             auto req = internal::create_req(callback, ctx);
 
-            if(uv_fs_read(uv_default_loop(), req, fd, ctx->buf, internal::rte_context::buflen, 0, internal::rte_cb<callback_t>)) {
+            if(uv_fs_read(uv_default_loop(), req, fd, ctx->buf, internal::rte_context::buflen, 0, internal::rte_cb<decltype(callback)>)) {
                 // failed to initiate uv_fs_read()
-                internal::delete_req<callback_t, internal::rte_context>(req);
+                internal::delete_req<decltype(callback), internal::rte_context>(req);
                 return false;
             }
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool close(file_handle fd, callback_t callback)
+        bool close(file_handle fd, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_close(uv_default_loop(), req, fd, [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_CLOSE);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -227,13 +222,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool unlink(const std::string& path, callback_t callback)
+        bool unlink(const std::string& path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_unlink(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_UNLINK);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -242,13 +236,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool mkdir(const std::string& path, int mode, callback_t callback)
+        bool mkdir(const std::string& path, int mode, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_mkdir(uv_default_loop(), req, path.c_str(), mode, [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_MKDIR);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -257,13 +250,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool rmdir(const std::string& path, callback_t callback)
+        bool rmdir(const std::string& path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_rmdir(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_RMDIR);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -272,13 +264,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool rename(const std::string& path, const std::string& new_path, callback_t callback)
+        bool rename(const std::string& path, const std::string& new_path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_rename(uv_default_loop(), req, path.c_str(), new_path.c_str(), [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_RENAME);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -287,13 +278,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool chmod(const std::string& path, int mode, callback_t callback)
+        bool chmod(const std::string& path, int mode, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_chmod(uv_default_loop(), req, path.c_str(), mode, [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_CHMOD);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -302,13 +292,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool chown(const std::string& path, int uid, int gid, callback_t callback)
+        bool chown(const std::string& path, int uid, int gid, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_chown(uv_default_loop(), req, path.c_str(), uid, gid, [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_CHOWN);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -318,13 +307,12 @@ namespace native
         }
 
 #if 0
-        template<typename callback_t>
-        bool readdir(const std::string& path, int flags, callback_t callback)
+        bool readdir(const std::string& path, int flags, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_readdir(uv_default_loop(), req, path.c_str(), flags, [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_READDIR);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -333,13 +321,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool stat(const std::string& path, callback_t callback)
+        bool stat(const std::string& path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_stat(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_STAT);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -348,13 +335,12 @@ namespace native
             return true;
         }
 
-        template<typename callback_t> // void(error e)
-        bool fstat(const std::string& path, callback_t callback)
+        bool fstat(const std::string& path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_fstat(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
                 assert(req->fs_type == UV_FS_FSTAT);
-                internal::invoke_from_req<callback_t>(req, req->errorno?error(req->errorno):error());
+                internal::invoke_from_req<decltype(callback)>(req, req->errorno?error(req->errorno):error());
                 internal::delete_req(req);
             })) {
                 internal::delete_req(req);
@@ -368,8 +354,7 @@ namespace native
     class file
     {
     public:
-        template<typename callback_t> // void(const std::string& str, error e)
-        static bool read(const std::string& path, callback_t callback)
+        static bool read(const std::string& path, std::function<void(const std::string& str, error e)> callback)
         {
             if(!fs::open(path.c_str(), fs::read_only, 0, [=](fs::file_handle fd, error e) {
                 if(e)
@@ -387,8 +372,7 @@ namespace native
             })) return false;
         }
 
-        template<typename callback_t> // void(int nwritten, error e)
-        static bool write(const std::string& path, const std::string& str, callback_t callback)
+        static bool write(const std::string& path, const std::string& str, std::function<void(int nwritten, error e)> callback)
         {
             if(!fs::open(path.c_str(), fs::write_only|fs::create, 0664, [=](fs::file_handle fd, error e) {
                 if(e)
@@ -404,25 +388,6 @@ namespace native
                     }
                 }
             })) return false;
-        }
-
-        template<typename callback_t>
-        static bool open(const std::string& path, callback_t callback)
-        {
-            return false;
-        }
-
-        template<typename callback_t>
-        static bool unlink(const std::string& path, callback_t callback)
-        {
-            return false;
-        }
-
-    public:
-        template<typename callback_t>
-        bool close(callback_t callback)
-        {
-            return false;
         }
     };
 }

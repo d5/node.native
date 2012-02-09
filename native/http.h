@@ -339,8 +339,7 @@ namespace native
 			}
 
 		private:
-			template<typename callback_t>
-			bool parse(callback_t callback)
+			bool parse(std::function<void(request&, response&)> callback)
 			{
 				request_ = new request;
 				response_ = new response(this, socket_);
@@ -413,7 +412,7 @@ namespace native
 				parser_settings_.on_message_complete = [](http_parser* parser) {
 					auto client = reinterpret_cast<client_context*>(parser->data);
 					// invoke stored callback object
-					callbacks::invoke<callback_t>(client->callback_lut_, 0, *client->request_, *client->response_);
+					callbacks::invoke<decltype(callback)>(client->callback_lut_, 0, *client->request_, *client->response_);
 					return 0;
 				};
 
@@ -455,16 +454,14 @@ namespace native
 			}
 
 		public:
-			template<typename callback_t>
-			static std::shared_ptr<http> create_server(const std::string& ip, int port, callback_t callback)
+			static std::shared_ptr<http> create_server(const std::string& ip, int port, std::function<void(request&, response&)> callback)
 			{
 			    auto server = std::shared_ptr<http>(new http);
 			    if(server->listen(ip, port, callback)) return server;
 			    return nullptr;
 			}
 
-			template<typename callback_t>
-			bool listen(const std::string& ip, int port, callback_t callback)
+			bool listen(const std::string& ip, int port, std::function<void(request&, response&)> callback)
 			{
 				if(!socket_->bind(ip, port)) return false;
 
