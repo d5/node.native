@@ -2,82 +2,10 @@
 #define __EVENTS_H__
 
 #include "base.h"
+#include "ext/FastDelegate.h"
 
 namespace dev
 {
-    namespace internal
-    {
-        class callback_obj_base
-        {
-        public:
-            callback_obj_base() {}
-            virtual ~callback_obj_base() {}
-        };
-
-        template<typename callback_t>
-        class callback_obj : public callback_obj_base
-        {
-        public:
-            callback_obj(callback_t callback)
-                : callback_(callback)
-            {}
-
-            template<typename ...A>
-            void invoke(A&& ... args)
-            {
-                callback_(std::forward<A>(args)...);
-            }
-
-        private:
-            callback_t callback_;
-        };
-    }
-
-    class EventEmitter
-    {
-        typedef std::vector<std::shared_ptr<internal::callback_obj_base>> listener_list;
-
-    public:
-        EventEmitter()
-            : callback_lut_()
-        {}
-        virtual ~EventEmitter()
-        {}
-
-    public:
-        template<typename T, int event_id> struct callback_type {};
-
-    protected:
-        template<typename T, int event_id>
-        void addListener_(typename callback_type<T, event_id>::type callback)
-        {
-            auto it = callback_lut_.find(event_id);
-            if(it == callback_lut_.end()) callback_lut_.insert(std::make_pair(event_id, listener_list()));
-            callback_lut_[event_id].push_back(std::shared_ptr<internal::callback_obj_base>(new internal::callback_obj<typename callback_type<T, event_id>::type>(callback)));
-        }
-
-        template<typename T, int event_id, typename ...A>
-        void invokeEvent_(A&& ... args)
-        {
-            typedef typename callback_type<T, event_id>::type cb_t;
-            typedef internal::callback_obj<cb_t> ev_t;
-
-            auto e = callback_lut_.find(event_id);
-            if(e != callback_lut_.end())
-            {
-                for(auto l : e->second)
-                {
-                    auto f = dynamic_cast<ev_t*>(l.get());
-                    assert(f);
-                    f->invoke(std::forward<A>(args)...);
-                }
-            }
-        }
-
-    private:
-        std::map<int, listener_list> callback_lut_;
-    };
-
     struct event
     {
         enum type
@@ -115,6 +43,248 @@ namespace dev
             debug2,
         };
     };
+
+    namespace internal
+    {
+        // TODO: member function related features are not working properly.
+        template<class R=fastdelegate::detail::DefaultVoid, class ...P>
+        class fast_delegate_base {
+        private:
+            typedef typename fastdelegate::detail::DefaultVoidToVoid<R>::type DesiredRetType;
+            typedef DesiredRetType (*StaticFunctionPtr)(P...);
+            typedef R (*UnvoidStaticFunctionPtr)(P...);
+            typedef R (fastdelegate::detail::GenericClass::*GenericMemFn)(P...);
+            typedef fastdelegate::detail::ClosurePtr<GenericMemFn, StaticFunctionPtr, UnvoidStaticFunctionPtr> ClosureType;
+            ClosureType m_Closure;
+        public:
+            // Typedefs to aid generic programming
+            typedef fast_delegate_base type;
+
+            // Construction and comparison functions
+            fast_delegate_base() { clear(); }
+
+            fast_delegate_base(const fast_delegate_base &x)
+            {
+                m_Closure.CopyFrom(this, x.m_Closure);
+            }
+
+            void operator = (const fast_delegate_base &x)
+            {
+                m_Closure.CopyFrom(this, x.m_Closure);
+            }
+            bool operator ==(const fast_delegate_base &x) const
+            {
+                return m_Closure.IsEqual(x.m_Closure);
+            }
+            bool operator !=(const fast_delegate_base &x) const
+            {
+                return !m_Closure.IsEqual(x.m_Closure);
+            }
+            bool operator <(const fast_delegate_base &x) const
+            {
+                return m_Closure.IsLess(x.m_Closure);
+            }
+            bool operator >(const fast_delegate_base &x) const
+            {
+                return x.m_Closure.IsLess(m_Closure);
+            }
+
+            // Binding to non-const member functions
+            template<class X, class Y>
+            fast_delegate_base(Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args) )
+            {
+                m_Closure.bindmemfunc(fastdelegate::detail::implicit_cast<X*>(pthis), function_to_bind);
+            }
+
+            template<class X, class Y>
+            inline void bind(Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args))
+            {
+                m_Closure.bindmemfunc(fastdelegate::detail::implicit_cast<X*>(pthis), function_to_bind);
+            }
+
+            // Binding to const member functions.
+            template<class X, class Y>
+            fast_delegate_base(const Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args) const)
+            {
+                m_Closure.bindconstmemfunc(fastdelegate::detail::implicit_cast<const X*>(pthis), function_to_bind);
+            }
+
+            template<class X, class Y>
+            inline void bind(const Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args) const)
+            {
+                m_Closure.bindconstmemfunc(fastdelegate::detail::implicit_cast<const X *>(pthis), function_to_bind);
+            }
+
+            // Static functions. We convert them into a member function call.
+            // This constructor also provides implicit conversion
+            fast_delegate_base(DesiredRetType (*function_to_bind)(P&& ... args) )
+            {
+                bind(function_to_bind);
+            }
+
+            // for efficiency, prevent creation of a temporary
+            void operator = (DesiredRetType (*function_to_bind)(P&& ... args) )
+            {
+                bind(function_to_bind);
+            }
+
+            inline void bind(DesiredRetType (*function_to_bind)(P&& ... args))
+            {
+                m_Closure.bindstaticfunc(this, &fast_delegate_base::InvokeStaticFunction, function_to_bind);
+            }
+
+            // Invoke the delegate
+            R operator()(P&& ... args) const
+            {
+                return (m_Closure.GetClosureThis()->*(m_Closure.GetClosureMemPtr()))(std::forward<P>(args)...);
+            }
+            // Implicit conversion to "bool" using the safe_bool idiom
+
+        private:
+            typedef struct SafeBoolStruct
+            {
+                int a_data_pointer_to_this_is_0_on_buggy_compilers;
+                StaticFunctionPtr m_nonzero;
+            } UselessTypedef;
+            typedef StaticFunctionPtr SafeBoolStruct::*unspecified_bool_type;
+        public:
+            operator unspecified_bool_type() const { return empty()? 0: &SafeBoolStruct::m_nonzero; }
+            // necessary to allow ==0 to work despite the safe_bool idiom
+            inline bool operator==(StaticFunctionPtr funcptr) { return m_Closure.IsEqualToStaticFuncPtr(funcptr); }
+            inline bool operator!=(StaticFunctionPtr funcptr) { return !m_Closure.IsEqualToStaticFuncPtr(funcptr); }
+            // Is it bound to anything?
+            inline bool operator ! () const { return !m_Closure; }
+            inline bool empty() const { return !m_Closure; }
+            void clear() { m_Closure.clear();}
+            // Conversion to and from the DelegateMemento storage class
+            const fastdelegate::DelegateMemento & GetMemento() { return m_Closure; }
+            void SetMemento(const fastdelegate::DelegateMemento &any) { m_Closure.CopyFrom(this, any); }
+
+        private:
+            // Invoker for static functions
+            R InvokeStaticFunction(P&& ... args) const
+            {
+                return (*(m_Closure.GetStaticFunction()))(std::forward<P>(args)...);
+            }
+        };
+
+        // fast_delegate<> is similar to std::function, but it has comparison operators.
+        template <typename Signature> class fast_delegate;
+
+        template<typename R, typename ...P>
+        class fast_delegate<R(P...)> : public fast_delegate_base<R, P...>
+        {
+        public:
+            typedef fast_delegate_base<R, P...> BaseType;
+
+            fast_delegate() : BaseType() { }
+
+            template<class X, class Y>
+            fast_delegate(Y * pthis, R (X::* function_to_bind)(P&& ... p))
+                : BaseType(pthis, function_to_bind)
+            { }
+
+            template<class X, class Y>
+            fast_delegate(const Y *pthis, R (X::* function_to_bind)(P&& ... p) const)
+                : BaseType(pthis, function_to_bind)
+            { }
+
+            fast_delegate(R (*function_to_bind)(P&& ... p))
+                : BaseType(function_to_bind)
+            { }
+
+            void operator = (const BaseType &x)
+            {
+                *static_cast<BaseType*>(this) = x;
+            }
+        };
+
+        class callback_obj_base
+        {
+        public:
+            callback_obj_base() {}
+            virtual ~callback_obj_base() {}
+        };
+
+        template<typename callback_t>
+        class callback_obj : public callback_obj_base
+        {
+        public:
+            callback_obj(callback_t callback)
+                : callback_(callback)
+            {}
+
+            template<typename ...A>
+            void invoke(A&& ... args)
+            {
+                callback_(std::forward<A>(args)...);
+            }
+
+        private:
+            callback_t callback_;
+        };
+    }
+
+    class EventEmitter
+    {
+        typedef std::list<std::shared_ptr<internal::callback_obj_base>> listener_list;
+
+    public:
+        EventEmitter()
+            : callback_lut_()
+        {}
+        virtual ~EventEmitter()
+        {}
+
+    public:
+        template<typename T, int event_id> struct callback_type {};
+
+    public:
+
+        template<typename T, int event_id>
+        void on(typename callback_type<T, event_id>::type callback)
+        {
+            addListener<T, event_id>(callback);
+        }
+
+        // TODO: addListener() takes class type as its first template parameter.
+        template<typename T, int event_id>
+        void addListener(typename callback_type<T, event_id>::type callback)
+        {
+            auto it = callback_lut_.find(event_id);
+            if(it == callback_lut_.end()) callback_lut_.insert(std::make_pair(event_id, listener_list()));
+            callback_lut_[event_id].push_back(std::shared_ptr<internal::callback_obj_base>(
+                new internal::callback_obj<typename callback_type<T, event_id>::type>(callback)));
+        }
+
+        template<typename T, int event_id>
+        void once(typename callback_type<T, event_id>::type callback)
+        {
+            // TODO: not implemented - EventEmitter::once()
+        }
+
+        template<typename T, int event_id, typename ...A>
+        void emit(A&& ... args)
+        {
+            typedef typename callback_type<T, event_id>::type cb_t;
+            typedef internal::callback_obj<cb_t> ev_t;
+
+            auto e = callback_lut_.find(event_id);
+            if(e != callback_lut_.end())
+            {
+                for(auto l : e->second)
+                {
+                    auto f = dynamic_cast<ev_t*>(l.get());
+                    assert(f);
+                    f->invoke(std::forward<A>(args)...);
+                }
+            }
+        }
+
+    private:
+        std::map<int, listener_list> callback_lut_;
+    };
+
 
 #if 0
     // SAMPLE EXTENSION
