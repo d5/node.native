@@ -3,7 +3,7 @@
 
 #include "base.h"
 
-namespace native
+namespace dev
 {
     namespace internal
     {

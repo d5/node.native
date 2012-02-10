@@ -2,6 +2,7 @@
 #define __NATIVE_H__
 
 #include "base.h"
+#include "events.h"
 #include "loop.h"
 #include "error.h"
 #include "tcp.h"
