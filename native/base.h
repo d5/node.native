@@ -8,6 +8,8 @@
 #include <utility>
 #include <functional>
 #include <map>
+#include <algorithm>
+#include <list>
 
 #include <uv.h>
 
