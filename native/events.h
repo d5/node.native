@@ -129,7 +129,7 @@ namespace dev
 
             inline void bind(desired_ret_t (*function_to_bind)(P...))
             {
-                closure_.bindstaticfunc(this, &fast_delegate_base::invoke_static_func<P...>, function_to_bind);
+                closure_.bindstaticfunc(this, &fast_delegate_base::invoke_static_func, function_to_bind);
             }
 
             // Invoke the delegate
@@ -162,10 +162,9 @@ namespace dev
 
         private:
             // Invoker for static functions
-            template<typename ...A>
-            R invoke_static_func(A&&... args) const
+            R invoke_static_func(P... args) const
             {
-                return (*(closure_.GetStaticFunction()))(std::forward<A>(args)...);
+                return (*(closure_.GetStaticFunction()))(std::forward<P>(args)...);
             }
         };
 
