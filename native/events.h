@@ -46,16 +46,15 @@ namespace dev
 
     namespace internal
     {
-        // TODO: member function related features are not working properly.
         template<class R=fastdelegate::detail::DefaultVoid, class ...P>
         class fast_delegate_base {
         private:
-            typedef typename fastdelegate::detail::DefaultVoidToVoid<R>::type DesiredRetType;
-            typedef DesiredRetType (*StaticFunctionPtr)(P...);
-            typedef R (*UnvoidStaticFunctionPtr)(P...);
-            typedef R (fastdelegate::detail::GenericClass::*GenericMemFn)(P...);
-            typedef fastdelegate::detail::ClosurePtr<GenericMemFn, StaticFunctionPtr, UnvoidStaticFunctionPtr> ClosureType;
-            ClosureType m_Closure;
+            typedef typename fastdelegate::detail::DefaultVoidToVoid<R>::type desired_ret_t;
+            typedef desired_ret_t (*static_func_ptr)(P...);
+            typedef R (*unvoid_static_func_ptr)(P...);
+            typedef R (fastdelegate::detail::GenericClass::*generic_mem_fn)(P...);
+            typedef fastdelegate::detail::ClosurePtr<generic_mem_fn, static_func_ptr, unvoid_static_func_ptr> closure_t;
+            closure_t closure_;
         public:
             // Typedefs to aid generic programming
             typedef fast_delegate_base type;
@@ -65,111 +64,114 @@ namespace dev
 
             fast_delegate_base(const fast_delegate_base &x)
             {
-                m_Closure.CopyFrom(this, x.m_Closure);
+                closure_.CopyFrom(this, x.closure_);
             }
 
             void operator = (const fast_delegate_base &x)
             {
-                m_Closure.CopyFrom(this, x.m_Closure);
+                closure_.CopyFrom(this, x.closure_);
             }
             bool operator ==(const fast_delegate_base &x) const
             {
-                return m_Closure.IsEqual(x.m_Closure);
+                return closure_.IsEqual(x.closure_);
             }
             bool operator !=(const fast_delegate_base &x) const
             {
-                return !m_Closure.IsEqual(x.m_Closure);
+                return !closure_.IsEqual(x.closure_);
             }
             bool operator <(const fast_delegate_base &x) const
             {
-                return m_Closure.IsLess(x.m_Closure);
+                return closure_.IsLess(x.closure_);
             }
             bool operator >(const fast_delegate_base &x) const
             {
-                return x.m_Closure.IsLess(m_Closure);
+                return x.closure_.IsLess(closure_);
             }
 
             // Binding to non-const member functions
             template<class X, class Y>
-            fast_delegate_base(Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args) )
+            fast_delegate_base(Y *pthis, desired_ret_t (X::* function_to_bind)(P...) )
             {
-                m_Closure.bindmemfunc(fastdelegate::detail::implicit_cast<X*>(pthis), function_to_bind);
+                closure_.bindmemfunc(fastdelegate::detail::implicit_cast<X*>(pthis), function_to_bind);
             }
 
             template<class X, class Y>
-            inline void bind(Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args))
+            inline void bind(Y *pthis, desired_ret_t (X::* function_to_bind)(P...))
             {
-                m_Closure.bindmemfunc(fastdelegate::detail::implicit_cast<X*>(pthis), function_to_bind);
+                closure_.bindmemfunc(fastdelegate::detail::implicit_cast<X*>(pthis), function_to_bind);
             }
 
             // Binding to const member functions.
             template<class X, class Y>
-            fast_delegate_base(const Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args) const)
+            fast_delegate_base(const Y *pthis, desired_ret_t (X::* function_to_bind)(P...) const)
             {
-                m_Closure.bindconstmemfunc(fastdelegate::detail::implicit_cast<const X*>(pthis), function_to_bind);
+                closure_.bindconstmemfunc(fastdelegate::detail::implicit_cast<const X*>(pthis), function_to_bind);
             }
 
             template<class X, class Y>
-            inline void bind(const Y *pthis, DesiredRetType (X::* function_to_bind)(P&& ... args) const)
+            inline void bind(const Y *pthis, desired_ret_t (X::* function_to_bind)(P...) const)
             {
-                m_Closure.bindconstmemfunc(fastdelegate::detail::implicit_cast<const X *>(pthis), function_to_bind);
+                closure_.bindconstmemfunc(fastdelegate::detail::implicit_cast<const X *>(pthis), function_to_bind);
             }
 
             // Static functions. We convert them into a member function call.
             // This constructor also provides implicit conversion
-            fast_delegate_base(DesiredRetType (*function_to_bind)(P&& ... args) )
+            fast_delegate_base(desired_ret_t (*function_to_bind)(P...) )
             {
                 bind(function_to_bind);
             }
 
             // for efficiency, prevent creation of a temporary
-            void operator = (DesiredRetType (*function_to_bind)(P&& ... args) )
+            void operator = (desired_ret_t (*function_to_bind)(P...) )
             {
                 bind(function_to_bind);
             }
 
-            inline void bind(DesiredRetType (*function_to_bind)(P&& ... args))
+            inline void bind(desired_ret_t (*function_to_bind)(P...))
             {
-                m_Closure.bindstaticfunc(this, &fast_delegate_base::InvokeStaticFunction, function_to_bind);
+                closure_.bindstaticfunc(this, &fast_delegate_base::invoke_static_func<P...>, function_to_bind);
             }
 
             // Invoke the delegate
-            R operator()(P&& ... args) const
+            template<typename ...A>
+            R operator()(A&&... args) const
             {
-                return (m_Closure.GetClosureThis()->*(m_Closure.GetClosureMemPtr()))(std::forward<P>(args)...);
+                return (closure_.GetClosureThis()->*(closure_.GetClosureMemPtr()))(std::forward<A>(args)...);
             }
             // Implicit conversion to "bool" using the safe_bool idiom
 
         private:
-            typedef struct SafeBoolStruct
+            typedef struct safe_bool_struct
             {
                 int a_data_pointer_to_this_is_0_on_buggy_compilers;
-                StaticFunctionPtr m_nonzero;
-            } UselessTypedef;
-            typedef StaticFunctionPtr SafeBoolStruct::*unspecified_bool_type;
+                static_func_ptr m_nonzero;
+            } useless_typedef;
+            typedef static_func_ptr safe_bool_struct::*unspecified_bool_type;
         public:
-            operator unspecified_bool_type() const { return empty()? 0: &SafeBoolStruct::m_nonzero; }
+            operator unspecified_bool_type() const { return empty()? 0: &safe_bool_struct::m_nonzero; }
             // necessary to allow ==0 to work despite the safe_bool idiom
-            inline bool operator==(StaticFunctionPtr funcptr) { return m_Closure.IsEqualToStaticFuncPtr(funcptr); }
-            inline bool operator!=(StaticFunctionPtr funcptr) { return !m_Closure.IsEqualToStaticFuncPtr(funcptr); }
+            inline bool operator==(static_func_ptr funcptr) { return closure_.IsEqualToStaticFuncPtr(funcptr); }
+            inline bool operator!=(static_func_ptr funcptr) { return !closure_.IsEqualToStaticFuncPtr(funcptr); }
             // Is it bound to anything?
-            inline bool operator ! () const { return !m_Closure; }
-            inline bool empty() const { return !m_Closure; }
-            void clear() { m_Closure.clear();}
+            inline bool operator ! () const { return !closure_; }
+            inline bool empty() const { return !closure_; }
+            void clear() { closure_.clear();}
             // Conversion to and from the DelegateMemento storage class
-            const fastdelegate::DelegateMemento & GetMemento() { return m_Closure; }
-            void SetMemento(const fastdelegate::DelegateMemento &any) { m_Closure.CopyFrom(this, any); }
+            const fastdelegate::DelegateMemento & GetMemento() { return closure_; }
+            void SetMemento(const fastdelegate::DelegateMemento &any) { closure_.CopyFrom(this, any); }
 
         private:
             // Invoker for static functions
-            R InvokeStaticFunction(P&& ... args) const
+            template<typename ...A>
+            R invoke_static_func(A&&... args) const
             {
-                return (*(m_Closure.GetStaticFunction()))(std::forward<P>(args)...);
+                return (*(closure_.GetStaticFunction()))(std::forward<A>(args)...);
             }
         };
 
         // fast_delegate<> is similar to std::function, but it has comparison operators.
-        template <typename Signature> class fast_delegate;
+        template<typename _Signature>
+        class fast_delegate;
 
         template<typename R, typename ...P>
         class fast_delegate<R(P...)> : public fast_delegate_base<R, P...>
@@ -180,16 +182,16 @@ namespace dev
             fast_delegate() : BaseType() { }
 
             template<class X, class Y>
-            fast_delegate(Y * pthis, R (X::* function_to_bind)(P&& ... p))
+            fast_delegate(Y * pthis, R (X::* function_to_bind)(P...))
                 : BaseType(pthis, function_to_bind)
             { }
 
             template<class X, class Y>
-            fast_delegate(const Y *pthis, R (X::* function_to_bind)(P&& ... p) const)
+            fast_delegate(const Y *pthis, R (X::* function_to_bind)(P...) const)
                 : BaseType(pthis, function_to_bind)
             { }
 
-            fast_delegate(R (*function_to_bind)(P&& ... p))
+            fast_delegate(R (*function_to_bind)(P...))
                 : BaseType(function_to_bind)
             { }
 
