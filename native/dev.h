@@ -6,6 +6,7 @@
 
 namespace dev
 {
+#if 0
     class Buffer {};
 
     class Exception {};
@@ -82,6 +83,7 @@ namespace dev
     template<> struct EventEmitter::callback_type<http::Server, event::checkContinue> { typedef http::Server::CheckContinueListener type; };
     template<> struct EventEmitter::callback_type<http::Server, event::upgrade> { typedef http::Server::UpgradeListener type; };
     template<> struct EventEmitter::callback_type<http::Server, event::clientError> { typedef http::Server::ClientErrorListener type; };
+#endif
 }
 
 #endif

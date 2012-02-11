@@ -10,6 +10,7 @@
 #include <map>
 #include <algorithm>
 #include <list>
+#include <set>
 
 #include <uv.h>
 
