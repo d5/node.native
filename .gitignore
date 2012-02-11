@@ -2,8 +2,9 @@
 .project
 .settings/*
 
-doc/html
-doc/latex
+doc/html/*
+doc/latex/*
+wiki/*
 
 webclient
 webserver
