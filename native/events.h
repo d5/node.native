@@ -2,6 +2,7 @@
 #define __EVENTS_H__
 
 #include "base.h"
+#include "utility.h"
 
 namespace dev
 {
@@ -44,166 +45,87 @@ namespace dev
         };
     };
 
-    namespace internal
+    template<typename ...F>
+    struct EventMap
     {
-        class sigslot_base
-        {
-        public:
-            sigslot_base() {}
-            virtual ~sigslot_base() {}
+        typedef typename utility::tuple_even_elements<F...>::type events;
+        typedef typename utility::tuple_odd_elements<F...>::type callbacks;
+    };
 
-            virtual void add_callback(void*) = 0;
-            virtual void remove_callback(void*) = 0;
-            virtual void reset() = 0;
-        };
-
-        template<typename ...P>
-        class sigslot: public sigslot_base
-        {
-        public:
-            typedef std::function<void(P...)> callback_type;
-            typedef std::shared_ptr<callback_type> callback_ptr;
-
-        public:
-            sigslot()
-                : callbacks_()
-            {}
-            virtual ~sigslot()
-            {}
-
-        public:
-            virtual void add_callback(void* callback)
-            {
-                callbacks_.insert(callback_ptr(reinterpret_cast<callback_type*>(callback)));
-            }
-
-            virtual void remove_callback(void* callback)
-            {
-                callbacks_.erase(callback_ptr(reinterpret_cast<callback_type*>(callback)));
-            }
-
-            virtual void reset()
-            {
-                callbacks_.clear();
-            }
-
-            void invoke(P&&... args)
-            {
-                for(auto c : callbacks_) (*c)(std::forward<P>(args)...);
-            }
-
-        private:
-            std::set<callback_ptr> callbacks_;
-        };
-    }
-
+    template<typename map>
     class EventEmitter
     {
-    protected:
-        EventEmitter() : events_() {}
+        typedef typename map::events events;
+        typedef typename map::callbacks callbacks;
+
+        template<typename e>
+        struct evt_idx : public std::integral_constant<std::size_t, utility::tuple_index_of<events, e>::value> {};
+
+        template<typename e>
+        struct cb_def
+        { typedef typename std::tuple_element<evt_idx<e>::value, callbacks>::type type; };
 
     public:
-        virtual ~EventEmitter() {}
-
         typedef void* listener_t;
 
-        template<typename ...A>
-        listener_t addListener(
-            int event_id,
-            typename internal::sigslot<A...>::callback_type callback)
-        {
-            auto s = events_.find(event_id);
-            if(s != events_.end())
-            {
-                // test if function signature matches or not.
-                assert(dynamic_cast<typename internal::sigslot<A...>*>(s->second.get()));
+        EventEmitter()
+            : set_()
+        {}
 
-                auto ptr = new typename internal::sigslot<A...>::callback_type(callback);
-                s->second->add_callback(ptr);
-                return ptr;
-            }
-            else
-            {
-                throw "Not registered event.";
-            }
+        virtual ~EventEmitter()
+        {
         }
 
-        void removeListener(int event_id, listener_t listener)
+        template<typename event>
+        auto addListener(typename cb_def<event>::type callback) -> decltype(&callback)
         {
-            auto s = events_.find(event_id);
-            if(s != events_.end())
-            {
-                s->second->remove_callback(listener);
-            }
-            else
-            {
-                throw "Not registered event.";
-            }
+            auto& entry = std::get<evt_idx<event>::value>(set_);
+
+            auto ptr = new decltype(callback)(callback);
+            entry.push_back(std::shared_ptr<decltype(callback)>(ptr));
+            return ptr;
         }
 
-        void reset(int event_id)
+        template<typename event>
+        bool removeListener(typename cb_def<event>::type* callback_ptr)
         {
-            auto s = events_.find(event_id);
-            if(s != events_.end())
-            {
-                s->second->reset();
-            }
-            else
-            {
-                throw "Not registered event.";
-            }
-        }
+            auto& entry = std::get<evt_idx<event>::value>(set_);
 
-        template<typename ...A>
-        void operator()(int event_id, A&&... args)
-        {
-            emit(event_id, std::forward<A>(args)...);
-        }
-
-        template<typename ...A>
-        void emit(int event_id, A&&... args)
-        {
-            auto s = events_.find(event_id);
-            if(s != events_.end())
+            auto it = entry.begin();
+            for(;it!=entry.end();++it)
             {
-                auto x = dynamic_cast<internal::sigslot<A...>*>(s->second.get());
-                if(x)
+                if(it->get() == callback_ptr)
                 {
-                    x->invoke(std::forward<A>(args)...);
-                }
-                else
-                {
-                    throw "Invalid callback type.";
+                    entry.erase(it);
+                    return true;
                 }
             }
-            else
-            {
-                throw "Not registered event.";
-            }
+            return false;
         }
 
-    protected:
-        template<typename ...A>
-        void registerEvent(int event_id)
+        template<typename event>
+        void removeAllListeners()
         {
-            auto it = events_.find(event_id);
-            if(it != events_.end())
-            {
-                throw "Event is already registered.";
-            }
-
-            events_.insert(std::make_pair(
-                event_id,
-                std::shared_ptr<internal::sigslot_base>(new internal::sigslot<A...>())));
+            auto& entry = std::get<evt_idx<event>::value>(set_);
+            entry.clear();
         }
 
-        void unregisterEvent(int event_id)
+        template<typename event, typename ...A>
+        void emit(A&&... args)
         {
-            events_.erase(event_id);
+            auto& entry = std::get<evt_idx<event>::value>(set_);
+            for(auto x : entry) (*x)(std::forward<A>(args)...);
         }
 
     private:
-        std::map<int, std::shared_ptr<internal::sigslot_base>> events_;
+        template<typename>
+        struct set_t;
+
+        template<typename ...T>
+        struct set_t<std::tuple<T...>>
+        { typedef std::tuple<std::list<std::shared_ptr<T>>...> type; };
+
+        typename set_t<callbacks>::type set_;
     };
 }
 
