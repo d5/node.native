@@ -50,11 +50,11 @@ namespace dev
         typedef typename util::tuple_odd_elements<merged_map>::type callbacks;
 
         template<typename E>
-        struct evt_idx : public std::integral_constant<std::size_t, util::tuple_index_of<events, E>::value> {};
+        struct event_idx : public std::integral_constant<std::size_t, util::tuple_index_of<events, E>::value> {};
 
         template<typename E>
-        struct cb_def
-        { typedef typename std::tuple_element<evt_idx<E>::value, callbacks>::type type; };
+        struct callback_type
+        { typedef typename std::tuple_element<event_idx<E>::value, callbacks>::type type; };
 
     public:
         typedef void* listener_t;
@@ -67,9 +67,9 @@ namespace dev
         {}
 
         template<typename E>
-        auto addListener(typename cb_def<E>::type callback) -> decltype(&callback)
+        auto addListener(typename callback_type<E>::type callback) -> decltype(&callback)
         {
-            auto& entry = std::get<evt_idx<E>::value>(set_);
+            auto& entry = std::get<event_idx<E>::value>(set_);
 
             auto ptr = new decltype(callback)(callback);
             entry.push_back(std::shared_ptr<decltype(callback)>(ptr));
@@ -77,9 +77,9 @@ namespace dev
         }
 
         template<typename E>
-        bool removeListener(typename cb_def<E>::type* callback_ptr)
+        bool removeListener(typename callback_type<E>::type* callback_ptr)
         {
-            auto& entry = std::get<evt_idx<E>::value>(set_);
+            auto& entry = std::get<event_idx<E>::value>(set_);
 
             auto it = entry.begin();
             for(;it!=entry.end();++it)
@@ -96,14 +96,14 @@ namespace dev
         template<typename E>
         void removeAllListeners()
         {
-            auto& entry = std::get<evt_idx<E>::value>(set_);
+            auto& entry = std::get<event_idx<E>::value>(set_);
             entry.clear();
         }
 
         template<typename E, typename ...A>
         void emit(A&&... args)
         {
-            auto& entry = std::get<evt_idx<E>::value>(set_);
+            auto& entry = std::get<event_idx<E>::value>(set_);
             for(auto x : entry)
             {
                 try

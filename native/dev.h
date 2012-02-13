@@ -19,8 +19,15 @@ namespace dev
         {
         };
 
+        typedef std::tuple<
+            ev::listening, std::function<void()>,
+            ev::connection, std::function<void(Socket&)>,
+            ev::error, std::function<void(Exception&)>,
+            ev::close, std::function<void()>
+        > server_events;
+
         template<typename ...E>
-        class Server : public EventEmitter<E...>
+        class Server : public EventEmitter<server_events, E...>
         {
         public:
             typedef std::function<void()> ListeningListener;
@@ -63,20 +70,17 @@ namespace dev
             virtual ~Server() {}
 
         public:
-            template<typename F>
-            static std::shared_ptr<Server> createServer(F requestListener)
+            static std::shared_ptr<Server> createServer(callback_type<ev::request>::type requestListener)
             {
                 return nullptr;
             }
 
-            template<typename F>
-            bool listen(int port, const std::string& hostname, F callback)
+            bool listen(int port, const std::string& hostname, callback_type<ev::listening>::type callback)
             {
                 return false;
             }
 
-            template<typename F>
-            bool listen(int port, F callback)
+            bool listen(int port, callback_type<ev::listening>::type callback)
             {
                 return false;
             }
