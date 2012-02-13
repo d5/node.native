@@ -6,40 +6,63 @@
 
 namespace dev
 {
-    namespace utility
+    namespace util
     {
-        // append to tuple
+        // Merges two std::tuple<>s.
+        template<typename...>
+        struct tuple_merge;
+
+        template<typename ...TA, typename ...TB>
+        struct tuple_merge<std::tuple<TA...>, std::tuple<TB...>>
+        { typedef std::tuple<TA..., TB...> type; };
+
+        // Appends an element to std::tuple<>.
         template<typename, typename >
         struct tuple_append;
 
-        template<typename H, typename ...T>
-        struct tuple_append<H, std::tuple<T...> >
-        { typedef std::tuple<H, T...> type; };
+        template<typename A, typename ...T>
+        struct tuple_append<A, std::tuple<T...> >
+        { typedef std::tuple<A, T...> type; };
+
+        // Prepends an element to std::tuple<>.
+        template<typename, typename >
+        struct tuple_prepend;
+
+        template<typename ...T, typename A>
+        struct tuple_prepend<std::tuple<T...>, A>
+        { typedef std::tuple<T..., A> type; };
 
         // make a new tuple from elements at even index
-        template<typename ...>
+        template<typename>
         struct tuple_even_elements;
 
         template<typename A, typename B>
-        struct tuple_even_elements<A, B>
+        struct tuple_even_elements<std::tuple<A, B>>
         { typedef std::tuple<A> type; };
 
         template<typename A, typename B, typename ...T>
-        struct tuple_even_elements<A, B, T...>
-        { typedef typename tuple_append<A, typename tuple_even_elements<T...>::type>::type type; };
+        struct tuple_even_elements<std::tuple<A, B, T...>>
+        { typedef typename tuple_append<A, typename tuple_even_elements<std::tuple<T...>>::type>::type type; };
+
+        template<>
+        struct tuple_even_elements<std::tuple<>>
+        { typedef std::tuple<> type; };
 
         // make a new tuple from elements at odd index
-        template<typename ...>
+        template<typename>
         struct tuple_odd_elements;
 
         template<typename A, typename B>
-        struct tuple_odd_elements<A, B>
+        struct tuple_odd_elements<std::tuple<A, B>>
         { typedef std::tuple<B> type; };
 
         template<typename A, typename B, typename ...T>
-        struct tuple_odd_elements<A, B, T...>
-        { typedef typename tuple_append<B, typename tuple_odd_elements<T...>::type>::type type; };
+        struct tuple_odd_elements<std::tuple<A, B, T...>>
+        { typedef typename tuple_append<B, typename tuple_odd_elements<std::tuple<T...>>::type>::type type; };
 
+        template<>
+        struct tuple_odd_elements<std::tuple<>>
+        { typedef std::tuple<> type; };
 
 
         // get the first index of a type in the tuple

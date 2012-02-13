@@ -6,64 +6,54 @@
 
 namespace dev
 {
-    struct event
+    namespace ev
     {
-        enum
-        {
-            none,
-            exit,
-            uncaughtException,
-            newListener,
-            data,
-            end,
-            error,
-            close,
-            drain,
-            pipe,
-            secure,
-            secureConnection,
-            clientError,
-            secureConnect,
-            open,
-            change,
-            listening,
-            connection,
-            connect,
-            timeout,
-            message,
-            request,
-            checkContinue,
-            upgrade,
-            response,
-            socket,
-            continue_,
-            line,
-            death,
-            debug1,
-            debug2,
-            user_defined
-        };
-    };
+        struct exit {};
+        struct uncaughtException {};
+        struct newListener {};
+        struct data {};
+        struct end {};
+        struct error {};
+        struct close {};
+        struct drain {};
+        struct pipe {};
+        struct secure {};
+        struct secureConnection {};
+        struct clientError {};
+        struct secureConnect {};
+        struct open {};
+        struct change {};
+        struct listening {};
+        struct connection {};
+        struct connect {};
+        struct timeout {};
+        struct message {};
+        struct request {};
+        struct checkContinue {};
+        struct upgrade {};
+        struct response {};
+        struct socket {};
+        struct continue_ {};
+        struct line {};
+        struct death {};
+        struct debug1 {};
+        struct debug2 {};
+    }
 
-    template<typename ...F>
-    struct EventMap
-    {
-        typedef typename utility::tuple_even_elements<F...>::type events;
-        typedef typename utility::tuple_odd_elements<F...>::type callbacks;
-    };
-
-    template<typename map>
+    template<typename ...M>
     class EventEmitter
     {
-        typedef typename map::events events;
-        typedef typename map::callbacks callbacks;
+        typedef typename util::tuple_merge<M...>::type merged_map;
 
-        template<typename e>
-        struct evt_idx : public std::integral_constant<std::size_t, utility::tuple_index_of<events, e>::value> {};
+        typedef typename util::tuple_even_elements<merged_map>::type events;
+        typedef typename util::tuple_odd_elements<merged_map>::type callbacks;
 
-        template<typename e>
+        template<typename E>
+        struct evt_idx : public std::integral_constant<std::size_t, util::tuple_index_of<events, E>::value> {};
+
+        template<typename E>
         struct cb_def
-        { typedef typename std::tuple_element<evt_idx<e>::value, callbacks>::type type; };
+        { typedef typename std::tuple_element<evt_idx<E>::value, callbacks>::type type; };
 
     public:
         typedef void* listener_t;
@@ -73,23 +63,22 @@ namespace dev
         {}
 
         virtual ~EventEmitter()
-        {
-        }
+        {}
 
-        template<typename event>
-        auto addListener(typename cb_def<event>::type callback) -> decltype(&callback)
+        template<typename E>
+        auto addListener(typename cb_def<E>::type callback) -> decltype(&callback)
         {
-            auto& entry = std::get<evt_idx<event>::value>(set_);
+            auto& entry = std::get<evt_idx<E>::value>(set_);
 
             auto ptr = new decltype(callback)(callback);
             entry.push_back(std::shared_ptr<decltype(callback)>(ptr));
             return ptr;
         }
 
-        template<typename event>
-        bool removeListener(typename cb_def<event>::type* callback_ptr)
+        template<typename E>
+        bool removeListener(typename cb_def<E>::type* callback_ptr)
         {
-            auto& entry = std::get<evt_idx<event>::value>(set_);
+            auto& entry = std::get<evt_idx<E>::value>(set_);
 
             auto it = entry.begin();
             for(;it!=entry.end();++it)
@@ -103,17 +92,17 @@ namespace dev
             return false;
         }
 
-        template<typename event>
+        template<typename E>
         void removeAllListeners()
         {
-            auto& entry = std::get<evt_idx<event>::value>(set_);
+            auto& entry = std::get<evt_idx<E>::value>(set_);
             entry.clear();
         }
 
-        template<typename event, typename ...A>
+        template<typename E, typename ...A>
         void emit(A&&... args)
         {
-            auto& entry = std::get<evt_idx<event>::value>(set_);
+            auto& entry = std::get<evt_idx<E>::value>(set_);
             for(auto x : entry) (*x)(std::forward<A>(args)...);
         }
 
