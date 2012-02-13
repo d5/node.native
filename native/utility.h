@@ -16,6 +16,14 @@ namespace dev
         struct tuple_merge<std::tuple<TA...>, std::tuple<TB...>>
         { typedef std::tuple<TA..., TB...> type; };
 
+        template<typename ...TA>
+        struct tuple_merge<std::tuple<TA...>>
+        { typedef std::tuple<TA...> type; };
+
+        template<>
+        struct tuple_merge<>
+        { typedef std::tuple<> type; };
+
         // Appends an element to std::tuple<>.
         template<typename, typename >
         struct tuple_append;

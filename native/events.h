@@ -2,6 +2,7 @@
 #define __EVENTS_H__
 
 #include "base.h"
+#include <exception>
 #include "utility.h"
 
 namespace dev
@@ -103,7 +104,17 @@ namespace dev
         void emit(A&&... args)
         {
             auto& entry = std::get<evt_idx<E>::value>(set_);
-            for(auto x : entry) (*x)(std::forward<A>(args)...);
+            for(auto x : entry)
+            {
+                try
+                {
+                    (*x)(std::forward<A>(args)...);
+                }
+                catch(...)
+                {
+                    // TODO: handle exception raised while executing the callbacks
+                }
+            }
         }
 
     private:

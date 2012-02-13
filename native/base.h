@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <list>
 #include <set>
+#include <tuple>
 
 #include <uv.h>
 
