@@ -10,8 +10,6 @@ namespace native
 {
 	namespace base
 	{
-		typedef uv_stream_info_t stream_info;
-
 		class stream : public handle
 		{
 		public:
@@ -115,16 +113,6 @@ namespace native
 					callbacks::invoke<decltype(callback)>(req->handle->data, native::internal::uv_cid_shutdown, status?uv_last_error(req->handle->loop):error());
 					delete req;
 				}) == 0;
-			}
-
-			bool export_to(stream_info* info)
-			{
-				return uv_export(get<uv_stream_t>(), info) == 0;
-			}
-
-			bool import_from(stream_info* info)
-			{
-				return uv_import(get<uv_stream_t>(), info) == 0;
 			}
 		};
 	}
