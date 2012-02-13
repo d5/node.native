@@ -39,6 +39,6 @@ then,
 
 I tested the code on Ubuntu 11.10 and GCC 4.6.1.
 
-## Todos
+## Other Resources
 
-- Match class and function names to those of Node.js as best as possible. 
+- [Public to-to lists](https://trello.com/b/1qk3tRGS)
