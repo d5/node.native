@@ -2,9 +2,9 @@ CXXFLAGS = -std=gnu++0x -g -O0 -I$(LIBUV_PATH)/include -I$(HTTP_PARSER_PATH) -I.
 
 OS_NAME=$(shell uname -s)
 ifeq (${OS_NAME},Darwin)
-	RTLIB=-lrt
-else
 	RTLIB=
+else
+	RTLIB=-lrt
 endif
 
 all: webclient webserver file_test
