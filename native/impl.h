@@ -31,6 +31,8 @@ namespace native
             error(uv_err_code code) : err_ {code, 0} {}
             ~error() {}
 
+            operator bool() { return err_.code != UV_OK; }
+
             uv_err_code code() const { return err_.code; }
             const char* name() const { return uv_err_name(err_); }
             const char* str() const { return uv_strerror(err_); }
