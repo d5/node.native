@@ -5,6 +5,7 @@ using namespace native;
 // usage: (executable)  src_file  dest_file
 
 int main(int argc, char** argv) {
+    /*
     if(argc < 3) {
         std::cout << "usage: " << argv[0] << " SRC_FILE DEST_FILE" << std::endl;
         return 1;
@@ -25,6 +26,7 @@ int main(int argc, char** argv) {
             });
         }
     });
+    */
 
     return run();
 }

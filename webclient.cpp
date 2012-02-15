@@ -1,12 +1,13 @@
 #include <iostream>
 #include <memory>
 #include <string>
+
 #include <native/native.h>
+#include <native/net.h>
 using namespace native;
 
-#include <fcntl.h>
-
 int main() {
+    /*
     auto client = net::tcp::create();
     client->connect("127.0.0.1", 8080, [=](error e){
         client->write("GET / HTTP/1.1\r\n\r\n", [=](error e){
@@ -24,6 +25,7 @@ int main() {
             });
         });
     });
+    */
 
     return run();
 }

@@ -6,11 +6,9 @@
 
 namespace native
 {
-	namespace base
+	namespace detail
 	{
-		class handle;
-
-		void _delete_handle(uv_handle_t* h);
+		void delete_handle(uv_handle_t* h);
 
 		class handle
 		{
@@ -19,23 +17,20 @@ namespace native
 			handle(T* x)
 				: uv_handle_(reinterpret_cast<uv_handle_t*>(x))
 			{
-				//printf("handle(): %x\n", this);
 				assert(uv_handle_);
 
-				uv_handle_->data = new callbacks(native::internal::uv_cid_max);
+				uv_handle_->data = new callbacks(uv_cid_max);
 				assert(uv_handle_->data);
 			}
 
 			virtual ~handle()
 			{
-				//printf("~handle(): %x\n", this);
 				uv_handle_ = nullptr;
 			}
 
 			handle(const handle& h)
 				: uv_handle_(h.uv_handle_)
 			{
-				//printf("handle(const handle&): %x\n", this);
 			}
 
 		public:
@@ -47,13 +42,18 @@ namespace native
 
 			bool is_active() { return uv_is_active(get()) != 0; }
 
+			void close()
+			{
+			    uv_close(get(), [](uv_handle_t* h) { delete_handle(h); });
+			}
+
 			void close(std::function<void()> callback)
 			{
-				callbacks::store(get()->data, native::internal::uv_cid_close, callback);
+				callbacks::store(get()->data, uv_cid_close, callback);
 				uv_close(get(),
 					[](uv_handle_t* h) {
-						callbacks::invoke<decltype(callback)>(h->data, native::internal::uv_cid_close);
-						_delete_handle(h);
+						callbacks::invoke<decltype(callback)>(h->data, uv_cid_close);
+						delete_handle(h);
 					});
 			}
 
@@ -67,7 +67,7 @@ namespace native
 			uv_handle_t* uv_handle_;
 		};
 
-		void _delete_handle(uv_handle_t* h)
+		void delete_handle(uv_handle_t* h)
 		{
 			assert(h);
 

@@ -5,7 +5,7 @@
 
 namespace native
 {
-    namespace internal
+    namespace detail
     {
         class callback_object_base
         {
@@ -24,7 +24,6 @@ namespace native
             void* data_;
         };
 
-        // SCO: serialized callback object
         template<typename callback_t>
         class callback_object : public callback_object_base
         {
@@ -49,44 +48,44 @@ namespace native
         private:
             callback_t callback_;
         };
+
+        typedef std::shared_ptr<callback_object_base> callback_object_ptr;
+
+        class callbacks
+        {
+        public:
+            callbacks(int max_callbacks)
+                : lut_(max_callbacks)
+            {
+            }
+            ~callbacks()
+            {
+            }
+
+            template<typename callback_t>
+            static void store(void* target, int cid, const callback_t& callback, void* data=nullptr)
+            {
+                reinterpret_cast<callbacks*>(target)->lut_[cid] = callback_object_ptr(new callback_object<callback_t>(callback, data));
+            }
+
+            template<typename callback_t>
+            static void* get_data(void* target, int cid)
+            {
+                return reinterpret_cast<callbacks*>(target)->lut_[cid]->get_data();
+            }
+
+            template<typename callback_t, typename ...A>
+            static typename std::result_of<callback_t(A...)>::type invoke(void* target, int cid, A&& ... args)
+            {
+                auto x = dynamic_cast<callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid].get());
+                assert(x);
+                return x->invoke(std::forward<A>(args)...);
+            }
+
+        private:
+            std::vector<callback_object_ptr> lut_;
+        };
     }
-
-    typedef std::shared_ptr<internal::callback_object_base> callback_object_ptr;
-
-    class callbacks
-    {
-    public:
-        callbacks(int max_callbacks)
-            : lut_(max_callbacks)
-        {
-        }
-        ~callbacks()
-        {
-        }
-
-        template<typename callback_t>
-        static void store(void* target, int cid, const callback_t& callback, void* data=nullptr)
-        {
-            reinterpret_cast<callbacks*>(target)->lut_[cid] = callback_object_ptr(new internal::callback_object<callback_t>(callback, data));
-        }
-
-        template<typename callback_t>
-        static void* get_data(void* target, int cid)
-        {
-            return reinterpret_cast<callbacks*>(target)->lut_[cid]->get_data();
-        }
-
-        template<typename callback_t, typename ...A>
-        static typename std::result_of<callback_t(A...)>::type invoke(void* target, int cid, A&& ... args)
-        {
-            auto x = dynamic_cast<internal::callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid].get());
-            assert(x);
-            return x->invoke(std::forward<A>(args)...);
-        }
-
-    private:
-        std::vector<callback_object_ptr> lut_;
-    };
 }
 
 #endif

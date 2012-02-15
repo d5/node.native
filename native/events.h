@@ -2,10 +2,9 @@
 #define __EVENTS_H__
 
 #include "base.h"
-#include <exception>
 #include "utility.h"
 
-namespace dev
+namespace native
 {
     namespace ev
     {

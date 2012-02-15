@@ -1,7 +1,6 @@
 #ifndef __TEXT_H__
 #define __TEXT_H__
 
-#include <functional>
 #include "base.h"
 
 namespace native
