@@ -23,8 +23,12 @@ namespace native
         static const int truncate = O_TRUNC;
         static const int no_follow = O_NOFOLLOW;
         static const int directory = O_DIRECTORY;
+#ifdef O_NOATIME
         static const int no_access_time = O_NOATIME;
+#endif
+#ifdef O_LARGEFILE
         static const int large_large = O_LARGEFILE;
+#endif
 
         namespace internal
         {
