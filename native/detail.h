@@ -3,6 +3,7 @@
 
 #include "base.h"
 #include "utility.h"
+#include <stdexcept>
 #include <uv.h>
 #include <http_parser.h>
 
@@ -1314,6 +1315,47 @@ namespace native
 
         private:
             std::set<callback_ptr> callbacks_;
+        };
+
+        class options
+        {
+        public:
+            options()
+                : map_()
+            {}
+
+            virtual ~options()
+            {}
+
+            const std::string& get(const std::string& name, const std::string& default_value=std::string()) const
+            {
+                auto it = map_.find(name);
+                if(it != map_.end()) return it->second;
+                else return default_value;
+            }
+
+            bool get(const std::string& name, std::string& value) const
+            {
+                auto it = map_.find(name);
+                if(it == map_.end()) return false;
+                value = it->second;
+                return true;
+            }
+
+            std::string& operator[](const std::string& name)
+            {
+                return map_[name];
+            }
+
+            const std::string& operator[](const std::string& name) const
+            {
+                auto it = map_.find(name);
+                if(it == map_.end()) throw std::out_of_range("No such element exists.");
+                return it->second;
+            }
+
+        private:
+            std::map<std::string, std::string> map_;
         };
     }
 }
