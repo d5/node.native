@@ -9,13 +9,13 @@ endif
 
 all: webclient webserver file_test
 
-webclient: webclient.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
+webclient: webclient.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h) native.h
 	$(CXX) $(CXXFLAGS) -o webclient webclient.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
 	
-webserver: webserver.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
+webserver: webserver.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h) native.h
 	$(CXX) $(CXXFLAGS) -o webserver webserver.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
 	
-file_test: file_test.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
+file_test: file_test.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h) native.h
 	$(CXX) $(CXXFLAGS) -o file_test file_test.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
 
 $(LIBUV_PATH)/uv.a:

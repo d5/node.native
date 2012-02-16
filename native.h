@@ -1,7 +1,7 @@
 #ifndef __NATIVE_H__
 #define __NATIVE_H__
 
-/*!
+/**
  *  @mainpage Documentation
  *
  *  @section Introduction
@@ -9,12 +9,19 @@
  *
  */
 
-#include "base.h"
-#include "loop.h"
+#include "native/base.h"
+#include "native/detail.h"
+#include "native/utility.h"
 
 namespace native
 {
-    using detail::run;
+    /**
+     *  Runs the main loop.
+     */
+    int run()
+    {
+        return detail::run();
+    }
 }
 
 #endif

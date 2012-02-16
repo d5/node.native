@@ -8,7 +8,9 @@ namespace native
 {
     namespace util
     {
-        // Merges two std::tuple<>s.
+        /**
+         *  Merges all tuples into a single tuple.
+         */
         template<typename...>
         struct tuple_merge;
 
@@ -24,7 +26,9 @@ namespace native
         struct tuple_merge<>
         { typedef std::tuple<> type; };
 
-        // Appends an element to std::tuple<>.
+        /**
+         *  Appends an element to a tuple.
+         */
         template<typename, typename >
         struct tuple_append;
 
@@ -32,7 +36,9 @@ namespace native
         struct tuple_append<A, std::tuple<T...> >
         { typedef std::tuple<A, T...> type; };
 
-        // Prepends an element to std::tuple<>.
+        /**
+         *  Prepends an element to a tuple.
+         */
         template<typename, typename >
         struct tuple_prepend;
 
@@ -40,7 +46,9 @@ namespace native
         struct tuple_prepend<std::tuple<T...>, A>
         { typedef std::tuple<T..., A> type; };
 
-        // make a new tuple from elements at even index
+        /**
+         *  Creates a new tuple that consists of even elements of the input tuple.
+         */
         template<typename>
         struct tuple_even_elements;
 
@@ -56,7 +64,9 @@ namespace native
         struct tuple_even_elements<std::tuple<>>
         { typedef std::tuple<> type; };
 
-        // make a new tuple from elements at odd index
+        /**
+         *  Creates a new tuple that consists of odd elements of the input tuple.
+         */
         template<typename>
         struct tuple_odd_elements;
 
@@ -72,8 +82,7 @@ namespace native
         struct tuple_odd_elements<std::tuple<>>
         { typedef std::tuple<> type; };
 
-
-        // get the first index of a type in the tuple
+        // recursive helper for tuple_index_of<>.
         template<typename T, typename C, std::size_t I>
         struct tuple_index_r;
 
@@ -88,9 +97,33 @@ namespace native
         struct tuple_index_r<std::tuple<>, C, I>
         {};
 
+        /**
+         *  Gets the first index of type C in the tuple T.
+         */
         template<typename T, typename C>
         struct tuple_index_of
             : public std::integral_constant<std::size_t, tuple_index_r<T, C, 0>::value> {};
+
+        /**
+         *  Case-insensitive string comparer type.
+         */
+        struct ci_less : std::binary_function<std::string, std::string, bool>
+        {
+            struct nocase_compare : public std::binary_function<unsigned char, unsigned char, bool>
+            {
+                bool operator()(const unsigned char& c1, const unsigned char& c2) const
+                {
+                    return tolower(c1) < tolower(c2);
+                }
+            };
+
+            bool operator()(const std::string & s1, const std::string & s2) const
+            {
+                return std::lexicographical_compare(s1.begin(), s1.end(), // source range
+                    s2.begin(), s2.end(), // dest range
+                    nocase_compare()); // comparison
+            }
+        };
     }
 }
 
