@@ -107,6 +107,12 @@ namespace native
         }
 
         template<typename E>
+        listener_t on(typename E::callback_type callback)
+        {
+            return addListener<E>(callback);
+        }
+
+        template<typename E>
         bool removeListener(listener_t listener)
         {
             auto s = events_.find(E::value);
