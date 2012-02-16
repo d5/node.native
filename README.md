@@ -2,7 +2,8 @@
 
 <b>node.native</b> is a [C++11](http://en.wikipedia.org/wiki/C%2B%2B11) (aka C++0x) port for [node.js](https://github.com/joyent/node). 
 
-Please note that <b>node.native</b> project is <em>under heavy development</em>: currently experimental.
+Please note that <b>node.native</b> project is <em>under heavy development</em>: 
+I'm working on the first release at [refactor](https://github.com/d5/node.native/tree/refactor) branch.
 
 ## Sample code
 
