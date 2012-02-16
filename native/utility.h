@@ -124,6 +124,12 @@ namespace native
                     nocase_compare()); // comparison
             }
         };
+
+        template<typename ...A>
+        struct callback_def
+        {
+            typedef std::function<void(A...)> callback_type;
+        };
     }
 }
 

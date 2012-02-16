@@ -8,123 +8,172 @@ namespace native
 {
     namespace ev
     {
-        struct exit {};
-        struct uncaughtException {};
-        struct newListener {};
-        struct data {};
-        struct end {};
-        struct error {};
-        struct close {};
-        struct drain {};
-        struct pipe {};
-        struct secure {};
-        struct secureConnection {};
-        struct clientError {};
-        struct secureConnect {};
-        struct open {};
-        struct change {};
-        struct listening {};
-        struct connection {};
-        struct connect {};
-        struct timeout {};
-        struct message {};
-        struct request {};
-        struct checkContinue {};
-        struct upgrade {};
-        struct response {};
-        struct socket {};
-        struct continue_ {};
-        struct line {};
-        struct death {};
-        struct debug1 {};
-        struct debug2 {};
+        class Exception;
+        class Stream;
+
+        struct exit
+            : public std::integral_constant<int, 0>
+            , public util::callback_def<> {};
+
+        struct uncaughtException
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<const Exception&> {};
+
+        // TODO: hmm... event id(int) and listner(void*)
+        struct newListener
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<int, void*> {};
+
+        struct data
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<const std::vector<char>&> {};
+
+        struct end
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<> {};
+
+        struct error
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<const Exception&> {};
+
+        struct close
+            : public std::integral_constant<int, 20>
+            , public util::callback_def<> {};
+
+        struct close2
+            : public std::integral_constant<int, 20>
+            , public util::callback_def<bool> {};
+
+        struct drain
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<> {};
+
+        struct pipe
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<Stream&> {};
+
+        struct secure
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<> {};
+
+        struct secureConnection
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<Stream&> {};
+
+        struct clientError
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<const Exception&> {};
+
+        struct secureConnect
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<> {};
+
+        struct open
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<int> {};
+
+        struct change
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<int, const std::string&> {};
+
+        struct listening
+            : public std::integral_constant<int, 19>
+            , public util::callback_def<> {};
     }
 
-    template<typename ...M>
     class EventEmitter
     {
-        typedef typename util::tuple_merge<M...>::type merged_map;
+    protected:
+        EventEmitter() : events_() {}
 
-        typedef typename util::tuple_even_elements<merged_map>::type events;
-        typedef typename util::tuple_odd_elements<merged_map>::type callbacks;
-
-        template<typename E>
-        struct event_idx : public std::integral_constant<std::size_t, util::tuple_index_of<events, E>::value> {};
-
-        template<typename E>
-        struct callback_type
-        { typedef typename std::tuple_element<event_idx<E>::value, callbacks>::type type; };
+    public:
+        virtual ~EventEmitter() {}
 
     public:
         typedef void* listener_t;
 
-        EventEmitter()
-            : set_()
-        {}
-
-        virtual ~EventEmitter()
-        {}
-
         template<typename E>
-        auto addListener(typename callback_type<E>::type callback) -> decltype(&callback)
+        listener_t addListener(typename E::callback_type callback)
         {
-            auto& entry = std::get<event_idx<E>::value>(set_);
+            auto s = events_.find(E::value);
+            if(s != events_.end())
+            {
+                auto ptr = new (decltype(callback))(callback);
+                s->second->add_callback(ptr);
+                return ptr;
+            }
 
-            auto ptr = new decltype(callback)(callback);
-            entry.push_back(std::shared_ptr<decltype(callback)>(ptr));
-            return ptr;
+            return nullptr;
         }
 
         template<typename E>
-        bool removeListener(typename callback_type<E>::type* callback_ptr)
+        bool removeListener(listener_t listener)
         {
-            auto& entry = std::get<event_idx<E>::value>(set_);
-
-            auto it = entry.begin();
-            for(;it!=entry.end();++it)
+            auto s = events_.find(E::value);
+            if(s != events_.end())
             {
-                if(it->get() == callback_ptr)
-                {
-                    entry.erase(it);
-                    return true;
-                }
+                return s->second->remove_callback(listener);
             }
+
             return false;
         }
 
         template<typename E>
-        void removeAllListeners()
+        bool removeAllListeners()
         {
-            auto& entry = std::get<event_idx<E>::value>(set_);
-            entry.clear();
+            auto s = events_.find(E::value);
+            if(s != events_.end())
+            {
+                s->second->reset();
+                return true;
+            }
+
+            return false;
         }
 
         template<typename E, typename ...A>
-        void emit(A&&... args)
+        bool emit(A&&... args)
         {
-            auto& entry = std::get<event_idx<E>::value>(set_);
-            for(auto x : entry)
+            auto s = events_.find(E::value);
+            if(s != events_.end())
             {
-                try
-                {
-                    (*x)(std::forward<A>(args)...);
-                }
-                catch(...)
-                {
-                    // TODO: handle exception raised while executing the callbacks
-                }
+                auto x = dynamic_cast<detail::sigslot<typename E::callback_type>*>(s->second.get());
+                assert(x);
+
+                x->invoke(std::forward<A>(args)...);
+                return true;
             }
+
+            return false;
+        }
+
+    protected:
+        template<typename E>
+        bool registerEvent()
+        {
+            auto res = events_.insert(std::make_pair(
+                E::value,
+                std::shared_ptr<detail::sigslot_base>(
+                    new detail::sigslot<typename E::callback_type>())));
+            if(!res.second)
+            {
+                // Two event IDs conflict:
+                //  1) different event type with the same ::value
+                //  2) second registration of the same event type.
+                assert(false);
+                return false;
+            }
+            return true;
+        }
+
+        template<typename E>
+        bool unregisterEvent()
+        {
+            return events_.erase(E::value) > 0;
         }
 
     private:
-        template<typename>
-        struct set_t;
-
-        template<typename ...T>
-        struct set_t<std::tuple<T...>>
-        { typedef std::tuple<std::list<std::shared_ptr<T>>...> type; };
-
-        typename set_t<callbacks>::type set_;
+        std::map<int, std::shared_ptr<detail::sigslot_base>> events_;
     };
 }
 

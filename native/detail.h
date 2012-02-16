@@ -1262,6 +1262,59 @@ namespace native
 
             return false;
         }
+
+        class sigslot_base
+        {
+        public:
+            sigslot_base() {}
+            virtual ~sigslot_base() {}
+        public:
+            virtual void add_callback(void*) = 0;
+            virtual bool remove_callback(void*) = 0;
+            virtual void reset() = 0;
+        };
+
+        template<typename>
+        class sigslot;
+
+        template<typename R, typename ...P>
+        class sigslot<std::function<R(P...)>> : public sigslot_base
+        {
+        public:
+            typedef std::function<R(P...)> callback_type;
+            typedef std::shared_ptr<callback_type> callback_ptr;
+
+        public:
+            sigslot()
+                : callbacks_()
+            {}
+            virtual ~sigslot()
+            {}
+
+        public:
+            virtual void add_callback(void* callback)
+            {
+                callbacks_.insert(callback_ptr(reinterpret_cast<callback_type*>(callback)));
+            }
+
+            virtual bool remove_callback(void* callback)
+            {
+                return callbacks_.erase(callback_ptr(reinterpret_cast<callback_type*>(callback))) > 0;
+            }
+
+            virtual void reset()
+            {
+                callbacks_.clear();
+            }
+
+            void invoke(P&&... args)
+            {
+                for(auto c : callbacks_) (*c)(std::forward<P>(args)...);
+            }
+
+        private:
+            std::set<callback_ptr> callbacks_;
+        };
     }
 }
 
