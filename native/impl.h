@@ -40,6 +40,33 @@ namespace native
             uv_err_t err_;
         };
 
+        sockaddr_in to_ip4_addr(const std::string& ip, int port) { return uv_ip4_addr(ip.c_str(), port); }
+        sockaddr_in6 to_ip6_addr(const std::string& ip, int port) { return uv_ip6_addr(ip.c_str(), port); }
+
+        error from_ip4_addr(sockaddr_in* src, std::string& ip, int& port)
+        {
+            char dest[16];
+            if(uv_ip4_name(src, dest, 16) == 0)
+            {
+                ip = dest;
+                port = static_cast<int>(ntohs(src->sin_port));
+                return error();
+            }
+            return error(uv_last_error(uv_default_loop()));;
+        }
+
+        error from_ip6_addr(sockaddr_in6* src, std::string& ip, int& port)
+        {
+            char dest[46];
+            if(uv_ip6_name(src, dest, 46) == 0)
+            {
+                ip = dest;
+                port = static_cast<int>(ntohs(src->sin6_port));
+                return error();
+            }
+            return error(uv_last_error(uv_default_loop()));;
+        }
+
         error get_last_error()
         {
             return error(uv_last_error(uv_default_loop()));
@@ -377,6 +404,7 @@ namespace native
             virtual ~pipe()
             {}
 
+        public:
             error bind(const std::string& name)
             {
                 bool res = uv_pipe_bind(&pipe_, name.c_str());
@@ -384,7 +412,7 @@ namespace native
                 return res?error():error(uv_last_error(uv_default_loop()));
             }
 
-            error listen(int backlog, std::function<void(std::shared_ptr<pipe>)> callback)
+            error listen(int backlog, std::function<void(std::shared_ptr<pipe>, error)> callback)
             {
                 callbacks::store(lut(), uv_cid_listen, callback);
                 bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&pipe_), backlog, [](uv_stream_t* handle, int status) {
@@ -400,7 +428,7 @@ namespace native
                     int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->pipe_));
                     assert(r == 0);
 
-                    callbacks::invoke<decltype(callback)>(self->lut(), uv_cid_listen, client_obj);
+                    callbacks::invoke<decltype(callback)>(self->lut(), uv_cid_listen, client_obj, error());
                 });
 
                 return res?error():error(uv_last_error(uv_default_loop()));
@@ -443,6 +471,156 @@ namespace native
 
         class tcp : public stream
         {
+        public:
+            tcp()
+                : stream(reinterpret_cast<uv_stream_t*>(&tcp_))
+                , tcp_()
+            {
+                int r = uv_tcp_init(uv_default_loop(), &tcp_);
+                assert(r == 0);
+
+                update_write_queue_size();
+            }
+
+            virtual ~tcp()
+            {}
+
+        public:
+            error get_sock_name(bool& is_ipv4, std::string& ip, int& port)
+            {
+                struct sockaddr_storage addr;
+                int addrlen = static_cast<int>(sizeof(addr));
+                bool res = uv_tcp_getsockname(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0;
+
+                if(res)
+                {
+                    assert(addr.ss_family == AF_INET || addr.ss_family == AF_INET6);
+
+                    is_ipv4 = (addr.ss_family == AF_INET);
+                    if(is_ipv4) return from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), ip, port);
+                    else return from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), ip, port);
+                }
+                else
+                {
+                    return error(uv_last_error(uv_default_loop()));
+                }
+            }
+
+            error get_peer_name(bool& is_ipv4, std::string& ip, int& port)
+            {
+                struct sockaddr_storage addr;
+                int addrlen = static_cast<int>(sizeof(addr));
+                bool res = uv_tcp_getpeername(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0;
+
+                if(res)
+                {
+                    assert(addr.ss_family == AF_INET || addr.ss_family == AF_INET6);
+
+                    is_ipv4 = (addr.ss_family == AF_INET);
+                    if(is_ipv4) return from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), ip, port);
+                    else return from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), ip, port);
+                }
+                else
+                {
+                    return error(uv_last_error(uv_default_loop()));
+                }
+            }
+            error set_no_delay(bool enable)
+            {
+                bool res = uv_tcp_nodelay(&tcp_, enable?1:0) == 0;
+                return res?error():error(uv_last_error(uv_default_loop()));
+            }
+
+            error set_keepalive(bool enable, unsigned int delay)
+            {
+                bool res = uv_tcp_keepalive(&tcp_, enable?1:0, delay) == 0;
+                return res?error():error(uv_last_error(uv_default_loop()));
+            }
+
+            error bind(const std::string& ip, int port)
+            {
+                struct sockaddr_in addr = to_ip4_addr(ip, port);
+
+                bool res = uv_tcp_bind(&tcp_, addr) == 0;
+                return res?error():error(uv_last_error(uv_default_loop()));
+            }
+
+            error bind6(const std::string& ip, int port)
+            {
+                struct sockaddr_in6 addr = to_ip6_addr(ip, port);
+
+                bool res = uv_tcp_bind6(&tcp_, addr) == 0;
+                return res?error():error(uv_last_error(uv_default_loop()));
+            }
+
+            error listen(int backlog, std::function<void(std::shared_ptr<tcp>, error)> callback)
+            {
+                callbacks::store(lut(), uv_cid_listen, callback);
+                bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&tcp_), backlog, [](uv_stream_t* handle, int status) {
+                    auto self = reinterpret_cast<tcp*>(handle->data);
+                    assert(self);
+
+                    if(status == 0)
+                    {
+                        auto client_obj = std::shared_ptr<tcp>(new tcp);
+                        assert(client_obj);
+
+                        int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->tcp_));
+                        assert(r == 0);
+
+                        callbacks::invoke<decltype(callback)>(self->lut(), uv_cid_listen, client_obj, error());
+                    }
+                    else
+                    {
+                        callbacks::invoke<decltype(callback)>(self->lut(), uv_cid_listen, nullptr, error(uv_last_error(uv_default_loop())));
+                    }
+                });
+
+                return res?error():error(uv_last_error(uv_default_loop()));
+            }
+
+            // TODO: Node.js implementation takes 5 parameter in callback function.
+            error connect(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
+            {
+                struct sockaddr_in addr = to_ip4_addr(ip, port);
+
+                auto req = new uv_connect_t;
+                assert(req);
+
+                callbacks::store(lut(), uv_cid_connect, callback);
+
+                bool res = uv_tcp_connect(req, &tcp_, addr, on_connect) == 0;
+                if(!res) delete req;
+                return res?error():error(uv_last_error(uv_default_loop()));
+            }
+
+            // TODO: Node.js implementation takes 5 parameter in callback function.
+            error connect6(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
+            {
+                struct sockaddr_in6 addr = to_ip6_addr(ip, port);
+
+                auto req = new uv_connect_t;
+                assert(req);
+
+                callbacks::store(lut(), uv_cid_connect, callback);
+
+                bool res = uv_tcp_connect6(req, &tcp_, addr, on_connect) == 0;
+                if(!res) delete req;
+                return res?error():error(uv_last_error(uv_default_loop()));
+            }
+
+        private:
+            static void on_connect(uv_connect_t* req, int status)
+            {
+                auto self = reinterpret_cast<tcp*>(req->handle->data);
+                assert(self);
+
+                callbacks::invoke<std::function<void(error, bool, bool)>>(self->lut(), uv_cid_connect,
+                    status?error(uv_last_error(uv_default_loop())):error(), true, true);
+
+                delete req;
+            }
+
         private:
             uv_tcp_t tcp_;
         };
