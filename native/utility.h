@@ -3,6 +3,7 @@
 
 #include "base.h"
 #include <tuple>
+#include <stdexcept>
 
 namespace native
 {
@@ -129,6 +130,62 @@ namespace native
         struct callback_def
         {
             typedef std::function<void(A...)> callback_type;
+        };
+
+        class dict
+        {
+        public:
+            dict()
+                : map_()
+            {}
+
+            virtual ~dict()
+            {}
+
+            const std::string& get(const std::string& name, const std::string& default_value=std::string()) const
+            {
+                auto it = map_.find(name);
+                if(it != map_.end()) return it->second;
+                else return default_value;
+            }
+
+            bool get(const std::string& name, std::string& value) const
+            {
+                auto it = map_.find(name);
+                if(it == map_.end()) return false;
+                value = it->second;
+                return true;
+            }
+
+            std::string& operator[](const std::string& name)
+            {
+                return map_[name];
+            }
+
+            const std::string& operator[](const std::string& name) const
+            {
+                auto it = map_.find(name);
+                if(it == map_.end()) throw std::out_of_range("No such element exists.");
+                return it->second;
+            }
+
+            bool compare(const std::string& name, const std::string& value) const
+            {
+                auto it = map_.find(name);
+                if(it == map_.end()) return false;
+                return value.compare(it->second) == 0;
+            }
+
+            // TODO: implement options::compare_no_case() function.
+            bool compare_no_case(const std::string& name, const std::string& value) const;
+
+            bool has(const std::string& name) const
+            {
+                return map_.count(name) > 0;
+            }
+
+        private:
+            std::map<std::string, std::string> map_;
         };
     }
 }

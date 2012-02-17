@@ -3,85 +3,38 @@
 
 #include "base.h"
 #include "utility.h"
+#include "object.h"
 
 namespace native
 {
+    class Exception;
+    class Stream;
+    namespace net { class Socket; }
+
     namespace ev
     {
-        class Exception;
-        class Stream;
-
-        struct exit
-            : public std::integral_constant<int, 0>
-            , public util::callback_def<> {};
-
-        struct uncaughtException
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<const Exception&> {};
-
+        struct exit : public util::callback_def<> {};
+        struct uncaughtException : public util::callback_def<const Exception&> {};
         // TODO: hmm... event id(int) and listner(void*)
-        struct newListener
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<int, void*> {};
-
-        struct data
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<const std::vector<char>&> {};
-
-        struct end
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<> {};
-
-        struct error
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<const Exception&> {};
-
-        struct close
-            : public std::integral_constant<int, 20>
-            , public util::callback_def<> {};
-
-        struct close2
-            : public std::integral_constant<int, 20>
-            , public util::callback_def<bool> {};
-
-        struct drain
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<> {};
-
-        struct pipe
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<Stream&> {};
-
-        struct secure
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<> {};
-
-        struct secureConnection
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<Stream&> {};
-
-        struct clientError
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<const Exception&> {};
-
-        struct secureConnect
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<> {};
-
-        struct open
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<int> {};
-
-        struct change
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<int, const std::string&> {};
-
-        struct listening
-            : public std::integral_constant<int, 19>
-            , public util::callback_def<> {};
+        struct newListener : public util::callback_def<int, void*> {};
+        struct data : public util::callback_def<const std::vector<char>&> {};
+        struct end : public util::callback_def<> {};
+        struct error : public util::callback_def<const Exception&> {};
+        struct close : public util::callback_def<> {};
+        struct close2 : public util::callback_def<bool> {};
+        struct drain : public util::callback_def<> {};
+        struct pipe : public util::callback_def<Stream&> {};
+        struct secure : public util::callback_def<> {};
+        struct secureConnection : public util::callback_def<Stream&> {};
+        struct clientError : public util::callback_def<const Exception&> {};
+        struct secureConnect : public util::callback_def<> {};
+        struct open : public util::callback_def<int> {};
+        struct change : public util::callback_def<int, const std::string&> {};
+        struct listening : public util::callback_def<> {};
+        struct connection : public util::callback_def<net::Socket&> {};
     }
 
-    class EventEmitter
+    class EventEmitter : public Object
     {
     protected:
         EventEmitter() : events_() {}
@@ -95,7 +48,7 @@ namespace native
         template<typename E>
         listener_t addListener(typename E::callback_type callback)
         {
-            auto s = events_.find(E::value);
+            auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
                 auto ptr = new (decltype(callback))(callback);
@@ -115,7 +68,7 @@ namespace native
         template<typename E>
         bool removeListener(listener_t listener)
         {
-            auto s = events_.find(E::value);
+            auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
                 return s->second->remove_callback(listener);
@@ -127,7 +80,7 @@ namespace native
         template<typename E>
         bool removeAllListeners()
         {
-            auto s = events_.find(E::value);
+            auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
                 s->second->reset();
@@ -140,7 +93,7 @@ namespace native
         template<typename E, typename ...A>
         bool emit(A&&... args)
         {
-            auto s = events_.find(E::value);
+            auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
                 auto x = dynamic_cast<detail::sigslot<typename E::callback_type>*>(s->second.get());
@@ -158,14 +111,12 @@ namespace native
         bool registerEvent()
         {
             auto res = events_.insert(std::make_pair(
-                E::value,
+                typeid(E).hash_code(),
                 std::shared_ptr<detail::sigslot_base>(
                     new detail::sigslot<typename E::callback_type>())));
             if(!res.second)
             {
-                // Two event IDs conflict:
-                //  1) different event type with the same ::value
-                //  2) second registration of the same event type.
+                // Two event IDs conflict
                 assert(false);
                 return false;
             }
@@ -175,7 +126,7 @@ namespace native
         template<typename E>
         bool unregisterEvent()
         {
-            return events_.erase(E::value) > 0;
+            return events_.erase(typeid(E).hash_code()) > 0;
         }
 
     private:

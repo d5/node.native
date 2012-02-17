@@ -13,5 +13,5 @@ int main() {
 
     std::cout << "Server running at http://0.0.0.0:8080/" << std::endl;
      */
-    return run();
+    return Node::instance().start();
 }

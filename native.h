@@ -15,13 +15,7 @@
 
 namespace native
 {
-    /**
-     *  Runs the main loop.
-     */
-    int run()
-    {
-        return detail::run();
-    }
+    typedef detail::node Node;
 }
 
 #endif

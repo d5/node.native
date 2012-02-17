@@ -3,7 +3,6 @@
 
 #include "base.h"
 #include "utility.h"
-#include <stdexcept>
 #include <uv.h>
 #include <http_parser.h>
 
@@ -29,6 +28,115 @@ namespace native
         {
             return uv_run(uv_default_loop());
         }
+
+
+
+        // see node.h/.cc in the original node implementation.
+        class node
+        {
+        private:
+            node()
+                : start_time_()
+                , check_()
+                , prepare_()
+                , idle_()
+                , need_tick_(false)
+                , tick_callbacks_()
+            {
+            }
+
+        public:
+            virtual ~node()
+            {}
+
+            static node& instance()
+            {
+                // TODO: (C++11) Is it really thread-safe and single instance across the modules?
+                static node single_instance;
+                return single_instance;
+            }
+
+            void init()
+            {
+                uv_uptime(&start_time_);
+
+                uv_prepare_init(uv_default_loop(), &prepare_);
+                prepare_.data = this;
+                uv_prepare_start(&prepare_, [](uv_prepare_t* handle, int status) {
+                    auto self = reinterpret_cast<node*>(handle->data);
+                    assert(self && &self->prepare_ == handle);
+                    assert(status == 0);
+
+                    self->tick();
+                });
+                uv_unref(uv_default_loop());
+
+                uv_check_init(uv_default_loop(), &check_);
+                check_.data = this;
+                uv_check_start(&check_, [](uv_check_t* handle, int status) {
+                    auto self = reinterpret_cast<node*>(handle->data);
+                    assert(self && &self->check_ == handle);
+                    assert(status == 0);
+
+                    self->tick();
+                });
+                uv_unref(uv_default_loop());
+
+                uv_idle_init(uv_default_loop(), &idle_);
+                uv_unref(uv_default_loop());
+            }
+
+            int start()
+            {
+                init();
+
+                // ...
+
+                uv_run(uv_default_loop());
+
+                // ...
+
+                return 0;
+            }
+
+            void addTickCallback(std::function<void()> callback)
+            {
+                tick_callbacks_.push_back(callback);
+                need_tick_ = true;
+            }
+
+        private:
+            void tick()
+            {
+                if(!need_tick_) return;
+                need_tick_ = false;
+
+                if(uv_is_active(reinterpret_cast<uv_handle_t*>(&idle_)))
+                {
+                    uv_idle_stop(&idle_);
+                    uv_unref(uv_default_loop());
+                }
+
+                for(auto cb : tick_callbacks_)
+                {
+                    try { cb(); }
+                    catch(...)
+                    {
+                        // TODO: handle exception in a tick callback
+                        assert(false);
+                    }
+                }
+            }
+
+        private:
+            double start_time_;
+
+            uv_check_t check_;
+            uv_prepare_t prepare_;
+            uv_idle_t idle_;
+            bool need_tick_;
+            std::list<std::function<void()>> tick_callbacks_;
+        };
 
         class error
         {
@@ -162,25 +270,25 @@ namespace native
         class object
         {
         public:
-            object(int max_cid)
-                : lut_(new callbacks(max_cid))
-            {}
+           object(int max_cid)
+               : lut_(new callbacks(max_cid))
+           {}
 
-            virtual ~object()
-            {
-                // TODO: make sure that lut_ is deleted properly and exactly once.
-                if(lut_)
-                {
-                    delete lut_;
-                    lut_ = nullptr;
-                }
-            }
+           virtual ~object()
+           {
+               // TODO: make sure that lut_ is deleted properly and exactly once.
+               if(lut_)
+               {
+                   delete lut_;
+                   lut_ = nullptr;
+               }
+           }
 
         protected:
-            callbacks* lut() { return lut_; }
+           callbacks* lut() { return lut_; }
 
         private:
-            callbacks* lut_;
+           callbacks* lut_;
         };
 
         class handle : public object
@@ -1315,47 +1423,6 @@ namespace native
 
         private:
             std::set<callback_ptr> callbacks_;
-        };
-
-        class options
-        {
-        public:
-            options()
-                : map_()
-            {}
-
-            virtual ~options()
-            {}
-
-            const std::string& get(const std::string& name, const std::string& default_value=std::string()) const
-            {
-                auto it = map_.find(name);
-                if(it != map_.end()) return it->second;
-                else return default_value;
-            }
-
-            bool get(const std::string& name, std::string& value) const
-            {
-                auto it = map_.find(name);
-                if(it == map_.end()) return false;
-                value = it->second;
-                return true;
-            }
-
-            std::string& operator[](const std::string& name)
-            {
-                return map_[name];
-            }
-
-            const std::string& operator[](const std::string& name) const
-            {
-                auto it = map_.find(name);
-                if(it == map_.end()) throw std::out_of_range("No such element exists.");
-                return it->second;
-            }
-
-        private:
-            std::map<std::string, std::string> map_;
         };
     }
 }

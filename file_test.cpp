@@ -27,5 +27,5 @@ int main(int argc, char** argv) {
         }
     });
     */
-    return run();
+    return Node::instance().start();
 }

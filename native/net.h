@@ -3,12 +3,19 @@
 
 #include "base.h"
 #include "detail.h"
+#include "stream.h"
 #include <arpa/inet.h>
 
 namespace native
 {
     namespace net
     {
+        class Server;
+        typedef std::shared_ptr<Server> ServerPtr;
+
+        class Socket;
+        typedef std::shared_ptr<Socket> SocketPtr;
+
         /**
          *  @brief Gets the version of IP address format.
          *
@@ -49,6 +56,67 @@ namespace native
          *  @retval false    Input string is not a valid IPv6 address.
          */
         bool isIPv6(const std::string& input) { return isIP(input) == 6; }
+
+        class Server : public EventEmitter
+        {
+            friend ServerPtr createServer(ev::connection::callback_type, bool);
+
+            Server(bool allowHalfOpen, ev::connection::callback_type callback)
+                : EventEmitter()
+                , connections_(0)
+                , allow_half_open_(allowHalfOpen)
+            {
+                registerEvent<ev::listening>();
+                registerEvent<ev::connection>();
+                registerEvent<ev::close>();
+                registerEvent<ev::error>();
+
+                if(callback) on<ev::connection>(callback);
+            }
+
+        public:
+            virtual ~Server()
+            {}
+
+#if 0
+            // listen over TCP socket
+            bool listen(int port, const std::string& host=std::string('0.0.0.0'), ev::listening::callback_type listeningListener=nullptr)
+            {
+                if(listeningListener) on<ev::listening>(listeningListener);
+
+                // ....
+
+                return false;
+            }
+
+            // listen over unix-socket
+            bool listen(const std::string& path, ev::listening::callback_type listeningListener=nullptr)
+            {
+                return false;
+            }
+#endif
+        public:
+            std::size_t connections_;
+            bool allow_half_open_;
+        };
+
+        class Socket : public Stream
+        {
+        public:
+            Socket()
+                : Stream(&tcp_, true, true)
+            {}
+
+            virtual ~Socket()
+            {}
+        private:
+            detail::tcp tcp_;
+        };
+
+        ServerPtr createServer(ev::connection::callback_type callback=nullptr, bool allowHalfOpen=false)
+        {
+            return ServerPtr(new Server(allowHalfOpen, callback));
+        }
     }
 }
 
