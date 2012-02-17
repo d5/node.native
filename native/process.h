@@ -11,7 +11,7 @@ namespace native
     public:
         static void nextTick(std::function<void()> callback)
         {
-            detail::node::instance().addTickCallback(callback);
+            detail::node::instance().add_tick_callback(callback);
         }
     };
 }

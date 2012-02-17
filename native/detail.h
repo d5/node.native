@@ -29,8 +29,6 @@ namespace native
             return uv_run(uv_default_loop());
         }
 
-
-
         // see node.h/.cc in the original node implementation.
         class node
         {
@@ -90,19 +88,15 @@ namespace native
             {
                 init();
 
-                // ...
-
                 uv_run(uv_default_loop());
-
-                // ...
 
                 return 0;
             }
 
-            void addTickCallback(std::function<void()> callback)
+            void add_tick_callback(std::function<void()> callback)
             {
                 tick_callbacks_.push_back(callback);
-                need_tick_ = true;
+                start_tick();
             }
 
         private:
@@ -117,14 +111,36 @@ namespace native
                     uv_unref(uv_default_loop());
                 }
 
-                for(auto cb : tick_callbacks_)
+                auto fail_it = tick_callbacks_.end();
+                for(auto it=tick_callbacks_.begin(); it!=tick_callbacks_.end(); ++it)
                 {
-                    try { cb(); }
+                    try { (*it)(); }
                     catch(...)
                     {
                         // TODO: handle exception in a tick callback
-                        assert(false);
+                        // ...
+
+                        // stop here and the remaining callbacks will be executed in the next tick.
+                        fail_it = ++it;
+                        break;
                     }
+                }
+                tick_callbacks_.erase(tick_callbacks_.begin(), fail_it);
+            }
+
+            void start_tick()
+            {
+                need_tick_ = true;
+                if(!uv_is_active(reinterpret_cast<uv_handle_t*>(&idle_)))
+                {
+                    uv_idle_start(&idle_, [](uv_idle_t* handle, int status) {
+                        auto self = reinterpret_cast<node*>(handle->data);
+                        assert(self && &self->idle_ == handle);
+                        assert(status == 0);
+
+                        self->tick();
+                    });
+                    uv_ref(uv_default_loop());
                 }
             }
 
