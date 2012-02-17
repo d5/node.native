@@ -505,6 +505,8 @@ namespace native
                 return res?error():error(uv_last_error(uv_default_loop()));
             }
 
+            virtual error listen(int backlog, std::function<void(std::shared_ptr<stream>, error)> callback) = 0;
+
         private:
             static uv_buf_t on_alloc(uv_handle_t* h, size_t suggested_size)
             {
@@ -526,7 +528,6 @@ namespace native
         public:
             pipe(bool ipc=false)
                 : stream(reinterpret_cast<uv_stream_t*>(&pipe_))
-                , pipe_()
             {
                 int r = uv_pipe_init(uv_default_loop(), &pipe_, ipc?1:0);
                 assert(r == 0);
@@ -545,7 +546,7 @@ namespace native
                 return res?error():error(uv_last_error(uv_default_loop()));
             }
 
-            error listen(int backlog, std::function<void(std::shared_ptr<pipe>, error)> callback)
+            virtual error listen(int backlog, std::function<void(std::shared_ptr<stream>, error)> callback)
             {
                 callbacks::store(lut(), uv_cid_listen, callback);
                 bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&pipe_), backlog, [](uv_stream_t* handle, int status) {
@@ -555,7 +556,7 @@ namespace native
                     assert(status == 0);
 
                     // TODO: what about 'ipc' parameter in ctor?
-                    auto client_obj = std::shared_ptr<pipe>(new pipe);
+                    std::shared_ptr<pipe> client_obj(new pipe);
                     assert(client_obj);
 
                     int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->pipe_));
@@ -607,7 +608,7 @@ namespace native
         public:
             tcp()
                 : stream(reinterpret_cast<uv_stream_t*>(&tcp_))
-                , tcp_()
+                //, tcp_() // This is intentional: POD; if reinitialized here, pointer to this assigned (at handle ctor) to tcp_.data will be lost.
             {
                 int r = uv_tcp_init(uv_default_loop(), &tcp_);
                 assert(r == 0);
@@ -686,7 +687,7 @@ namespace native
                 return res?error():error(uv_last_error(uv_default_loop()));
             }
 
-            error listen(int backlog, std::function<void(std::shared_ptr<tcp>, error)> callback)
+            error listen(int backlog, std::function<void(std::shared_ptr<stream>, error)> callback)
             {
                 callbacks::store(lut(), uv_cid_listen, callback);
                 bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&tcp_), backlog, [](uv_stream_t* handle, int status) {
@@ -695,7 +696,7 @@ namespace native
 
                     if(status == 0)
                     {
-                        auto client_obj = std::shared_ptr<tcp>(new tcp);
+                        std::shared_ptr<tcp> client_obj(new tcp);
                         assert(client_obj);
 
                         int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->tcp_));
@@ -1432,9 +1433,10 @@ namespace native
                 callbacks_.clear();
             }
 
-            void invoke(P&&... args)
+            template<typename ...A>
+            void invoke(A&&... args)
             {
-                for(auto c : callbacks_) (*c)(std::forward<P>(args)...);
+                for(auto c : callbacks_) (*c)(std::forward<A>(args)...);
             }
 
         private:

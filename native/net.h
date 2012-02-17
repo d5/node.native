@@ -4,6 +4,8 @@
 #include "base.h"
 #include "detail.h"
 #include "stream.h"
+#include "error.h"
+#include "process.h"
 #include <arpa/inet.h>
 
 namespace native
@@ -57,14 +59,36 @@ namespace native
          */
         bool isIPv6(const std::string& input) { return isIP(input) == 6; }
 
+        class Socket : public Stream
+        {
+        public:
+            Socket(std::shared_ptr<detail::stream> handle, Server* server, bool allow_half_open)
+                : Stream(handle.get(), true, true)
+                , stream_(handle)
+                , server_(server)
+                , allow_half_open_(allow_half_open)
+            {}
+
+            virtual ~Socket()
+            {}
+
+        private:
+            std::shared_ptr<detail::stream> stream_;
+            bool allow_half_open_;
+            Server* server_;
+        };
+
         class Server : public EventEmitter
         {
             friend ServerPtr createServer(ev::connection::callback_type, bool);
 
             Server(bool allowHalfOpen, ev::connection::callback_type callback)
                 : EventEmitter()
+                , stream_()
                 , connections_(0)
+                , max_connections_(0)
                 , allow_half_open_(allowHalfOpen)
+                , backlog_(128)
             {
                 registerEvent<ev::listening>();
                 registerEvent<ev::connection>();
@@ -78,40 +102,110 @@ namespace native
             virtual ~Server()
             {}
 
-#if 0
             // listen over TCP socket
-            bool listen(int port, const std::string& host=std::string('0.0.0.0'), ev::listening::callback_type listeningListener=nullptr)
+            bool listen(int port, const std::string& host=std::string("0.0.0.0"), ev::listening::callback_type listeningListener=nullptr)
             {
                 if(listeningListener) on<ev::listening>(listeningListener);
 
-                // ....
+                if(!stream_)
+                {
+                    stream_.reset(create_server_handle(port, host));
+                    if(!stream_)
+                    {
+                        process::nextTick([&](){
+                            emit<ev::error>(Exception("Failed to create a server socket (1)."));
+                        });
+                        return false;
+                    }
+                }
 
-                return false;
+                detail::error e = stream_->listen(backlog_, [&](std::shared_ptr<detail::stream> s, detail::error e){
+                    if(e)
+                    {
+                        emit<ev::error>(Exception("Failed to accept client socket (1)."));
+                    }
+                    else
+                    {
+                        if(max_connections_ && connections_ > max_connections_)
+                        {
+                            // TODO: where is "error" event?
+                            s->close(); // just close down?
+                            return;
+                        }
+
+                        SocketPtr socket(new Socket(s, this, allow_half_open_));
+                        assert(socket);
+
+                        socket->resume();
+
+                        connections_++;
+                        emit<ev::connection>(socket);
+
+                        socket->emit<ev::connect>();
+                    }
+                });
+
+                if(e)
+                {
+                    stream_->close();
+                    stream_.reset();
+                    process::nextTick([&](){
+                        emit<ev::error>(Exception("Failed to initiate listening on server socket (1)."));
+                    });
+                    return false;
+                }
+
+                process::nextTick([&](){
+                    emit<ev::listening>();
+                });
+                return true;
             }
 
             // listen over unix-socket
             bool listen(const std::string& path, ev::listening::callback_type listeningListener=nullptr)
             {
+                // TODO: implement Server::listen() - unix socket.
                 return false;
             }
-#endif
+
+        protected:
+            detail::stream* create_server_handle(int port, const std::string& host)
+            {
+                auto tcp_ = new detail::tcp;
+                assert(tcp_);
+
+                detail::error e;
+                if(isIPv4(host)) e = tcp_->bind(host, port);
+                else if(isIPv6(host)) e = tcp_->bind6(host, port);
+                else
+                {
+                    assert(false);
+                    return nullptr;
+                }
+
+                if(e)
+                {
+                    tcp_->close();
+                    return nullptr;
+                }
+
+                return tcp_;
+            }
+
+            detail::stream* create_server_handle(const std::string& path)
+            {
+                return nullptr;
+            }
+
         public:
+            std::shared_ptr<detail::stream> stream_;
             std::size_t connections_;
+            std::size_t max_connections_;
             bool allow_half_open_;
+            int backlog_;
         };
 
-        class Socket : public Stream
-        {
-        public:
-            Socket()
-                : Stream(&tcp_, true, true)
-            {}
 
-            virtual ~Socket()
-            {}
-        private:
-            detail::tcp tcp_;
-        };
 
         ServerPtr createServer(ev::connection::callback_type callback=nullptr, bool allowHalfOpen=false)
         {

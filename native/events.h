@@ -31,7 +31,8 @@ namespace native
         struct open : public util::callback_def<int> {};
         struct change : public util::callback_def<int, const std::string&> {};
         struct listening : public util::callback_def<> {};
-        struct connection : public util::callback_def<net::Socket&> {};
+        struct connection : public util::callback_def<std::shared_ptr<net::Socket>> {};
+        struct connect: public util::callback_def<> {};
     }
 
     class EventEmitter : public Object
