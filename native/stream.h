@@ -3,6 +3,7 @@
 
 #include "base.h"
 #include "detail.h"
+#include "buffers.h"
 #include "events.h"
 
 namespace native
@@ -103,20 +104,12 @@ namespace native
             return false;
         }
 
-        virtual bool write(const std::vector<char>& buffer)
-        {
-            return false;
-        }
+        virtual bool write(const std::string& str, const std::string& encoding, int fd) { return false; }
+        virtual bool write(const Buffer& buffer) { return false; }
 
-        virtual bool end()
-        {
-            return false;
-        }
-
-        virtual bool end(const std::vector<char>& buffer)
-        {
-            return false;
-        }
+        virtual bool end(const std::string& str, const std::string& encoding, int fd) { return false; }
+        virtual bool end(const Buffer& buffer) { return false; }
+        virtual bool end() { return false; }
 
     private:
         detail::stream* stream_;
