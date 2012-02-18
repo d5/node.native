@@ -105,11 +105,70 @@ namespace native
             // listen over TCP socket
             bool listen(int port, const std::string& host=std::string("0.0.0.0"), ev::listening::callback_type listeningListener=nullptr)
             {
+                return listen_(host, port, listeningListener);
+            }
+
+            // listen over unix-socket
+            bool listen(const std::string& path, ev::listening::callback_type listeningListener=nullptr)
+            {
+                return listen_(path, 0, listeningListener);
+            }
+
+        protected:
+            static detail::stream* create_server_handle(const std::string& ip_or_path, int port)
+            {
+                detail::error e;
+                if(isIPv4(ip_or_path))
+                {
+                    auto handle = new detail::tcp;
+                    assert(handle);
+
+                    auto err = handle->bind(ip_or_path, port);
+                    if(err)
+                    {
+                        handle->close();
+                        return nullptr;
+                    }
+
+                    return handle;
+                }
+                else if(isIPv6(ip_or_path))
+                {
+                    auto handle = new detail::tcp;
+                    assert(handle);
+
+                    auto err = handle->bind6(ip_or_path, port);
+                    if(err)
+                    {
+                        handle->close();
+                        return nullptr;
+                    }
+
+                    return handle;
+                }
+                else
+                {
+                    auto handle = new detail::pipe;
+                    assert(handle);
+
+                    auto err = handle->bind(ip_or_path);
+                    if(err)
+                    {
+                        handle->close();
+                        return nullptr;
+                    }
+
+                    return handle;
+                }
+            }
+
+            bool listen_(const std::string& ip_or_path, int port, ev::listening::callback_type listeningListener)
+            {
                 if(listeningListener) on<ev::listening>(listeningListener);
 
                 if(!stream_)
                 {
-                    stream_.reset(create_server_handle(port, host));
+                    stream_.reset(create_server_handle(ip_or_path, port));
                     if(!stream_)
                     {
                         process::nextTick([&](){
@@ -159,42 +218,6 @@ namespace native
                     emit<ev::listening>();
                 });
                 return true;
-            }
-
-            // listen over unix-socket
-            bool listen(const std::string& path, ev::listening::callback_type listeningListener=nullptr)
-            {
-                // TODO: implement Server::listen() - unix socket.
-                return false;
-            }
-
-        protected:
-            detail::stream* create_server_handle(int port, const std::string& host)
-            {
-                auto tcp_ = new detail::tcp;
-                assert(tcp_);
-
-                detail::error e;
-                if(isIPv4(host)) e = tcp_->bind(host, port);
-                else if(isIPv6(host)) e = tcp_->bind6(host, port);
-                else
-                {
-                    assert(false);
-                    return nullptr;
-                }
-
-                if(e)
-                {
-                    tcp_->close();
-                    return nullptr;
-                }
-
-                return tcp_;
-            }
-
-            detail::stream* create_server_handle(const std::string& path)
-            {
-                return nullptr;
             }
 
         public:
