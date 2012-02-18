@@ -17,8 +17,15 @@ namespace native
             : message_(e.str())
         {}
 
+        Exception(detail::error e, const std::string& message)
+            : message_(message + "\n" + e.str())
+        {}
+
         virtual ~Exception()
         {}
+
+    public:
+        const std::string& message() const { return message_; }
 
     private:
         std::string message_;

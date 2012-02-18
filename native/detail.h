@@ -43,6 +43,9 @@ namespace native
             {
             }
 
+            node(const node&) = delete;
+            void operator =(const node&) = delete;
+
         public:
             virtual ~node()
             {}
@@ -86,11 +89,7 @@ namespace native
 
             int start()
             {
-                init();
-
-                uv_run(uv_default_loop());
-
-                return 0;
+                return uv_run(uv_default_loop());
             }
 
             void add_tick_callback(std::function<void()> callback)
@@ -343,15 +342,14 @@ namespace native
                 handle_->data = this;
             }
 
+            // Note that the handle object itself is deleted in a deferred callback of uv_close() invoked in this function.
             void close()
             {
                 if(!handle_) return;
 
                 uv_close(handle_, [](uv_handle_t* h){
                     auto self = reinterpret_cast<handle*>(h->data);
-                    assert(self);
-                    assert(!self->handle_);
-
+                    assert(self && self->handle_ == nullptr);
                     delete self;
                 });
 
@@ -362,6 +360,7 @@ namespace native
             }
 
             virtual void state_change() {}
+
         private:
             uv_handle_t* handle_;
             bool unref_;
@@ -617,7 +616,8 @@ namespace native
             }
 
             virtual ~tcp()
-            {}
+            {
+            }
 
         public:
             error get_sock_name(bool& is_ipv4, std::string& ip, int& port)
@@ -708,7 +708,7 @@ namespace native
                     {
                         callbacks::invoke<decltype(callback)>(self->lut(), uv_cid_listen, nullptr, error(uv_last_error(uv_default_loop())));
                     }
-                });
+                }) == 0;
 
                 return res?error():error(uv_last_error(uv_default_loop()));
             }

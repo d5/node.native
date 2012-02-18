@@ -95,7 +95,7 @@ namespace native
 
             Server(bool allowHalfOpen, ev::connection::callback_type callback)
                 : EventEmitter()
-                , stream_()
+                , stream_(nullptr)
                 , connections_(0)
                 , max_connections_(0)
                 , allow_half_open_(allowHalfOpen)
@@ -138,7 +138,7 @@ namespace native
                 }
 
                 stream_->close();
-                stream_.reset();
+                stream_ = nullptr;
                 emitCloseIfDrained();
             }
 
@@ -150,7 +150,7 @@ namespace native
                 {
                 case SocketType::IPv4:
                     {
-                        auto x = dynamic_cast<detail::tcp*>(stream_.get());
+                        auto x = dynamic_cast<detail::tcp*>(stream_);
                         assert(x);
 
                         bool b;
@@ -161,7 +161,7 @@ namespace native
 
                 case SocketType::IPv6:
                     {
-                        auto x = dynamic_cast<detail::tcp*>(stream_.get());
+                        auto x = dynamic_cast<detail::tcp*>(stream_);
                         assert(x);
 
                         bool b;
@@ -250,7 +250,7 @@ namespace native
 
                 if(!stream_)
                 {
-                    stream_.reset(create_server_handle(ip_or_pipe_name, port));
+                    stream_ = create_server_handle(ip_or_pipe_name, port);
                     if(!stream_)
                     {
                         process::nextTick([&](){
@@ -263,7 +263,7 @@ namespace native
                 detail::error e = stream_->listen(backlog_, [&](std::shared_ptr<detail::stream> s, detail::error e){
                     if(e)
                     {
-                        emit<ev::error>(Exception("Failed to accept client socket (1)."));
+                        emit<ev::error>(Exception(e, "Failed to accept client socket (1)."));
                     }
                     else
                     {
@@ -289,9 +289,9 @@ namespace native
                 if(e)
                 {
                     stream_->close();
-                    stream_.reset();
+                    stream_ = nullptr;
                     process::nextTick([&](){
-                        emit<ev::error>(Exception("Failed to initiate listening on server socket (1)."));
+                        emit<ev::error>(Exception(e, "Failed to initiate listening on server socket (1)."));
                     });
                     return false;
                 }
@@ -303,7 +303,7 @@ namespace native
             }
 
         public:
-            std::shared_ptr<detail::stream> stream_;
+            detail::stream* stream_;
             std::size_t connections_;
             std::size_t max_connections_;
             bool allow_half_open_;

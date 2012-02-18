@@ -19,7 +19,7 @@ namespace native
         struct newListener : public util::callback_def<int, void*> {};
         struct data : public util::callback_def<const std::vector<char>&> {};
         struct end : public util::callback_def<> {};
-        struct error : public util::callback_def<const Exception&> {};
+        struct error : public util::callback_def<Exception> {};
         struct close : public util::callback_def<> {};
         struct close2 : public util::callback_def<bool> {};
         struct drain : public util::callback_def<> {};
