@@ -9,6 +9,7 @@ namespace native
 {
     class Exception;
     class Stream;
+    class Buffer;
     namespace net { class Socket; }
 
     namespace ev
