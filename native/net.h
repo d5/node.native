@@ -59,6 +59,17 @@ namespace native
          */
         bool isIPv6(const std::string& input) { return isIP(input) == 6; }
 
+        struct SocketType
+        {
+            enum
+            {
+                IPv4,
+                IPv6,
+                Pipe,
+                None
+            };
+        };
+
         class Socket : public Stream
         {
         public:
@@ -89,6 +100,8 @@ namespace native
                 , max_connections_(0)
                 , allow_half_open_(allowHalfOpen)
                 , backlog_(128)
+                , socket_type_(SocketType::None)
+                , pipe_name_()
             {
                 registerEvent<ev::listening>();
                 registerEvent<ev::connection>();
@@ -114,36 +127,103 @@ namespace native
                 return listen_(path, 0, listeningListener);
             }
 
+            // TODO: implement Socket::pause() function.
+            void pause(unsigned int msecs) {}
+
+            void close()
+            {
+                if(!stream_)
+                {
+                    throw Exception("Server is not running (1).");
+                }
+
+                stream_->close();
+                stream_.reset();
+                emitCloseIfDrained();
+            }
+
+            int address(std::string& ip_or_pipe_name, int& port)
+            {
+                if(!stream_) return SocketType::None;
+
+                switch(socket_type_)
+                {
+                case SocketType::IPv4:
+                    {
+                        auto x = dynamic_cast<detail::tcp*>(stream_.get());
+                        assert(x);
+
+                        bool b;
+                        x->get_sock_name(b, ip_or_pipe_name, port);
+                        assert(b == true);
+                    }
+                    break;
+
+                case SocketType::IPv6:
+                    {
+                        auto x = dynamic_cast<detail::tcp*>(stream_.get());
+                        assert(x);
+
+                        bool b;
+                        x->get_sock_name(b, ip_or_pipe_name, port);
+                        assert(b == false);
+                    }
+                    break;
+
+                case SocketType::Pipe:
+                    {
+                        ip_or_pipe_name = pipe_name_;
+                    }
+                    break;
+                }
+
+                return socket_type_;
+            }
+
+            std::size_t maxConnections() const { return max_connections_; }
+            void maxConnections(std::size_t value) { max_connections_ = value; }
+
+            std::size_t connections() const { return connections_; }
+
         protected:
-            static detail::stream* create_server_handle(const std::string& ip_or_path, int port)
+            void emitCloseIfDrained()
+            {
+                if(stream_ || connections_) return;
+
+                process::nextTick([&](){ emit<ev::close>(); });
+            }
+
+            detail::stream* create_server_handle(const std::string& ip_or_pipe_name, int port)
             {
                 detail::error e;
-                if(isIPv4(ip_or_path))
+                if(isIPv4(ip_or_pipe_name))
                 {
                     auto handle = new detail::tcp;
                     assert(handle);
 
-                    auto err = handle->bind(ip_or_path, port);
+                    auto err = handle->bind(ip_or_pipe_name, port);
                     if(err)
                     {
                         handle->close();
                         return nullptr;
                     }
 
+                    socket_type_ = SocketType::IPv4;
                     return handle;
                 }
-                else if(isIPv6(ip_or_path))
+                else if(isIPv6(ip_or_pipe_name))
                 {
                     auto handle = new detail::tcp;
                     assert(handle);
 
-                    auto err = handle->bind6(ip_or_path, port);
+                    auto err = handle->bind6(ip_or_pipe_name, port);
                     if(err)
                     {
                         handle->close();
                         return nullptr;
                     }
 
+                    socket_type_ = SocketType::IPv6;
                     return handle;
                 }
                 else
@@ -151,24 +231,26 @@ namespace native
                     auto handle = new detail::pipe;
                     assert(handle);
 
-                    auto err = handle->bind(ip_or_path);
+                    auto err = handle->bind(ip_or_pipe_name);
                     if(err)
                     {
                         handle->close();
                         return nullptr;
                     }
 
+                    socket_type_ = SocketType::Pipe;
+                    pipe_name_ = ip_or_pipe_name;
                     return handle;
                 }
             }
 
-            bool listen_(const std::string& ip_or_path, int port, ev::listening::callback_type listeningListener)
+            bool listen_(const std::string& ip_or_pipe_name, int port, ev::listening::callback_type listeningListener)
             {
                 if(listeningListener) on<ev::listening>(listeningListener);
 
                 if(!stream_)
                 {
-                    stream_.reset(create_server_handle(ip_or_path, port));
+                    stream_.reset(create_server_handle(ip_or_pipe_name, port));
                     if(!stream_)
                     {
                         process::nextTick([&](){
@@ -226,9 +308,9 @@ namespace native
             std::size_t max_connections_;
             bool allow_half_open_;
             int backlog_;
+            int socket_type_;
+            std::string pipe_name_;
         };
-
-
 
         ServerPtr createServer(ev::connection::callback_type callback=nullptr, bool allowHalfOpen=false)
         {
