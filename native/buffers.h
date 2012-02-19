@@ -25,6 +25,14 @@ namespace native
             : data_(str.begin(), str.end())
         {}
 
+        Buffer(Buffer&& c)
+            : data_(std::move(c.data_))
+        {}
+
+        Buffer(std::nullptr_t)
+            : data_()
+        {}
+
         virtual ~Buffer()
         {}
 
@@ -35,6 +43,12 @@ namespace native
         Buffer& operator =(const Buffer& c)
         {
             data_ = c.data_;
+            return *this;
+        }
+
+        Buffer& operator =(Buffer&& c)
+        {
+            data_ = std::move(c.data_);
             return *this;
         }
 

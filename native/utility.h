@@ -149,16 +149,20 @@ namespace native
                 : map_(map)
             {}
 
-            dict(const dict&& c)
+            dict(const dict& c)
                 : map_(c.map_)
             {}
 
             dict(dict&& c)
-                : map_(c.map_)
+                : map_(std::move(c.map_))
             {}
 
             dict(std::initializer_list<map_type::value_type> map)
                 : map_(map)
+            {}
+
+            dict(std::nullptr_t)
+                : map_()
             {}
 
             virtual ~dict()
