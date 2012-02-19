@@ -134,13 +134,53 @@ namespace native
 
         class dict
         {
+            typedef std::map<std::string, std::string> map_type;
+            typedef map_type::iterator iterator;
+            typedef map_type::const_iterator const_iterator;
+            typedef map_type::reverse_iterator reverse_iterator;
+            typedef map_type::const_reverse_iterator const_reverse_iterator;
+
         public:
             dict()
                 : map_()
             {}
 
+            dict(const map_type& map)
+                : map_(map)
+            {}
+
+            dict(const dict&& c)
+                : map_(c.map_)
+            {}
+
+            dict(dict&& c)
+                : map_(c.map_)
+            {}
+
+            dict(std::initializer_list<map_type::value_type> map)
+                : map_(map)
+            {}
+
             virtual ~dict()
             {}
+
+            dict& operator =(const dict& c)
+            {
+                map_ = c.map_;
+                return *this;
+            }
+
+            dict& operator =(dict&& c)
+            {
+                map_ = std::move(c.map_);
+                return *this;
+            }
+
+            dict& operator =(std::initializer_list<map_type::value_type> map)
+            {
+                map_ = map;
+                return *this;
+            }
 
             const std::string& get(const std::string& name, const std::string& default_value=std::string()) const
             {
@@ -184,8 +224,21 @@ namespace native
                 return map_.count(name) > 0;
             }
 
+            iterator begin() { return map_.begin(); }
+            const_iterator begin() const { return map_.begin(); }
+            iterator end() { return map_.end(); }
+            const_iterator end() const { return map_.end(); }
+            reverse_iterator rbegin() { return map_.rbegin(); }
+            const_reverse_iterator rbegin() const { return map_.rbegin(); }
+            reverse_iterator rend() { return map_.rend(); }
+            const_reverse_iterator rend() const { return map_.rend(); }
+            const_iterator cbegin() const { return map_.cbegin(); }
+            const_iterator cend() const { return map_.cend(); }
+            const_reverse_iterator crbegin() const { return map_.crbegin(); }
+            const_reverse_iterator crend() const { return map_.crend(); }
+
         private:
-            std::map<std::string, std::string> map_;
+            map_type map_;
         };
     }
 }
