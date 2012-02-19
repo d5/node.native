@@ -504,7 +504,7 @@ namespace native
                 return res?error():error(uv_last_error(uv_default_loop()));
             }
 
-            virtual error listen(int backlog, std::function<void(std::shared_ptr<stream>, error)> callback) = 0;
+            virtual error listen(int backlog, std::function<void(stream*, error)> callback) = 0;
 
         private:
             static uv_buf_t on_alloc(uv_handle_t* h, size_t suggested_size)
@@ -545,7 +545,7 @@ namespace native
                 return res?error():error(uv_last_error(uv_default_loop()));
             }
 
-            virtual error listen(int backlog, std::function<void(std::shared_ptr<stream>, error)> callback)
+            virtual error listen(int backlog, std::function<void(stream*, error)> callback)
             {
                 callbacks::store(lut(), uv_cid_listen, callback);
                 bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&pipe_), backlog, [](uv_stream_t* handle, int status) {
@@ -555,7 +555,7 @@ namespace native
                     assert(status == 0);
 
                     // TODO: what about 'ipc' parameter in ctor?
-                    std::shared_ptr<pipe> client_obj(new pipe);
+                    auto client_obj = new pipe;
                     assert(client_obj);
 
                     int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->pipe_));
@@ -687,7 +687,7 @@ namespace native
                 return res?error():error(uv_last_error(uv_default_loop()));
             }
 
-            error listen(int backlog, std::function<void(std::shared_ptr<stream>, error)> callback)
+            error listen(int backlog, std::function<void(stream*, error)> callback)
             {
                 callbacks::store(lut(), uv_cid_listen, callback);
                 bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&tcp_), backlog, [](uv_stream_t* handle, int status) {
@@ -696,7 +696,7 @@ namespace native
 
                     if(status == 0)
                     {
-                        std::shared_ptr<tcp> client_obj(new tcp);
+                        auto client_obj = new tcp;
                         assert(client_obj);
 
                         int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->tcp_));
@@ -815,7 +815,8 @@ namespace native
 
             case UV_FS_READLINK:
                 if(req->result == -1)
-                {                    callbacks::invoke<std::function<void(error, const std::string&)>>(req->data, 0, error(static_cast<uv_err_code>(req->errorno)), std::string());
+                {
+                    callbacks::invoke<std::function<void(error, const std::string&)>>(req->data, 0, error(static_cast<uv_err_code>(req->errorno)), std::string());
                 }
                 else
                 {

@@ -72,20 +72,31 @@ namespace native
 
         class Socket : public Stream
         {
+            static constexpr int FLAG_GOT_EOF = 1 << 0;
+            static constexpr int FLAG_SHUTDOWN = 1 << 1;
+            static constexpr int FLAG_DESTROY_SOON = 1 << 0;
+            static constexpr int FLAG_SHUTDOWNQUED = 1 << 1;
+
         public:
-            Socket(std::shared_ptr<detail::stream> handle, Server* server, bool allow_half_open)
-                : Stream(handle.get(), true, true)
+            Socket(detail::stream* handle, Server* server, bool allowHalfOpen)
+                : Stream(handle, true, true)
                 , stream_(handle)
                 , server_(server)
-                , allow_half_open_(allow_half_open)
+                , flags_(0)
+                , allow_half_open_(allowHalfOpen)
+                , connecting_(false)
             {}
 
             virtual ~Socket()
             {}
 
         private:
-            std::shared_ptr<detail::stream> stream_;
+            detail::stream* stream_;
+
+            int flags_;
             bool allow_half_open_;
+            bool connecting_;
+
             Server* server_;
         };
 
@@ -198,7 +209,7 @@ namespace native
                 detail::error e;
                 if(isIPv4(ip_or_pipe_name))
                 {
-                    auto handle = new detail::tcp;
+                    auto handle = new detail::tcp();
                     assert(handle);
 
                     auto err = handle->bind(ip_or_pipe_name, port);
@@ -213,7 +224,7 @@ namespace native
                 }
                 else if(isIPv6(ip_or_pipe_name))
                 {
-                    auto handle = new detail::tcp;
+                    auto handle = new detail::tcp();
                     assert(handle);
 
                     auto err = handle->bind6(ip_or_pipe_name, port);
@@ -228,7 +239,7 @@ namespace native
                 }
                 else
                 {
-                    auto handle = new detail::pipe;
+                    auto handle = new detail::pipe();
                     assert(handle);
 
                     auto err = handle->bind(ip_or_pipe_name);
@@ -260,7 +271,7 @@ namespace native
                     }
                 }
 
-                detail::error e = stream_->listen(backlog_, [&](std::shared_ptr<detail::stream> s, detail::error e){
+                detail::error e = stream_->listen(backlog_, [&](detail::stream* s, detail::error e){
                     if(e)
                     {
                         emit<ev::error>(Exception(e, "Failed to accept client socket (1)."));
@@ -274,13 +285,13 @@ namespace native
                             return;
                         }
 
-                        SocketPtr socket(new Socket(s, this, allow_half_open_));
+                        auto socket = new Socket(s, this, allow_half_open_);
                         assert(socket);
 
                         socket->resume();
 
                         connections_++;
-                        emit<ev::connection>(socket);
+                        emit<ev::connection>(SocketPtr(socket));
 
                         socket->emit<ev::connect>();
                     }

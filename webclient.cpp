@@ -9,7 +9,7 @@ using namespace native;
 int main() {
     Node::instance().init();
 
-    auto server = net::createServer([](std::shared_ptr<net::Socket> socket){
+    auto server = net::createServer([](net::SocketPtr socket){
         std::cout << "Accepted" << std::endl;
     });
     server->on<ev::error>([](Exception e){
