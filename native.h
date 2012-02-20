@@ -12,6 +12,7 @@
 #include "native/base.h"
 #include "native/detail.h"
 #include "native/utility.h"
+#include "native/net.h"
 
 namespace native
 {

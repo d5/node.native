@@ -233,9 +233,11 @@ namespace native
         public:
             sigslot()
                 : callbacks_()
-            {}
+            {
+            }
             virtual ~sigslot()
-            {}
+            {
+            }
 
         public:
             virtual void add_callback(void* callback)
@@ -245,7 +247,23 @@ namespace native
 
             virtual bool remove_callback(void* callback)
             {
-                return callbacks_.erase(callback_ptr(reinterpret_cast<callback_type*>(callback))) > 0;
+                auto d = callbacks_.end();
+                for(auto it=callbacks_.begin();it!=callbacks_.end();++it)
+                {
+                    if(reinterpret_cast<void*>(it->get()) == callback)
+                    {
+                        d = it;
+                        break;
+                    }
+                }
+
+                if(d != callbacks_.end())
+                {
+                    callbacks_.erase(d);
+                    return true;
+                }
+
+                return false;
             }
 
             virtual void reset()
@@ -261,7 +279,8 @@ namespace native
             template<typename ...A>
             void invoke(A&&... args)
             {
-                for(auto c : callbacks_)
+                auto callbacks_copy = callbacks_;
+                for(auto c : callbacks_copy)
                 {
                     if(*c) (*c)(std::forward<A>(args)...);
                 }

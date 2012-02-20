@@ -21,7 +21,6 @@ namespace native
         struct end : public util::callback_def<> {};
         struct error : public util::callback_def<Exception> {};
         struct close : public util::callback_def<> {};
-        struct close2 : public util::callback_def<bool> {};
         struct drain : public util::callback_def<> {};
         struct pipe : public util::callback_def<Stream*> {};
         struct secure : public util::callback_def<> {};
@@ -39,10 +38,15 @@ namespace native
     class EventEmitter
     {
     protected:
-        EventEmitter() : events_() {}
+        EventEmitter()
+            : events_()
+        {
+        }
 
     public:
-        virtual ~EventEmitter() {}
+        virtual ~EventEmitter()
+        {
+        }
 
     public:
         typedef void* listener_t;

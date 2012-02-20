@@ -100,54 +100,19 @@ namespace native
                 registerEvent<ev::timeout>();
                 registerEvent<ev::drain>();
                 registerEvent<ev::error>();
-                registerEvent<ev::close2>();
+                registerEvent<ev::close>();
 
                 if(stream_)
                 {
                     stream_->set_on_read_callback([&](const char* buffer, std::size_t offset, std::size_t length, detail::error e){
-                        timers::active(this);
-
-                        std::size_t end_pos = offset + length;
-                        if(buffer)
-                        {
-                            // TODO: implement decoding
-                            // ..
-                            if(haveListener<ev::data>()) emit<ev::data>(Buffer(&buffer[offset], length));
-
-                            bytes_read_ += length;
-
-                            if(on_data_callback_) on_data_callback_(buffer, offset, end_pos);
-                        }
-                        else
-                        {
-                            if(e.code() == UV_EOF)
-                            {
-                                readable(false);
-
-                                assert(!(flags_ & FLAG_GOT_EOF));
-                                flags_ |= FLAG_GOT_EOF;
-
-                                if(!writable()) destroy();
-
-                                if(!allow_half_open_) end();
-                                if(haveListener<ev::end>()) emit<ev::end>();
-                                if(on_end_callback_) on_end_callback_();
-                            }
-                            else if(e.code() == ECONNRESET)
-                            {
-                                destroy();
-                            }
-                            else
-                            {
-                                destroy(Exception(e));
-                            }
-                        }
+                        on_read(buffer, offset, length, e);
                     });
                 }
             }
 
             virtual ~Socket()
-            {}
+            {
+            }
 
         public:
             virtual bool end(const Buffer& buffer)
@@ -257,38 +222,12 @@ namespace native
 
             virtual void destroy(Exception exception)
             {
-                if(destroyed_) return;
+                destroy_(true, exception);
+            }
 
-                connect_queue_cleanup();
-
-                readable(false);
-                writable(false);
-
-                timers::unenroll(this);
-
-                // Because of C++ declration order, we cannot call Server class member functions here.
-                // Instead, Server handles this using delegate.
-#if 1
-                if(on_destroy_callback_) on_destroy_callback_();
-#else
-                if(server_)
-                {
-                    //server_->connections_--;
-                    //server_->emitCloseIfDrained();
-                }
-#endif
-
-                if(stream_)
-                {
-                    stream_->close();
-                    stream_->set_on_read_callback(nullptr);
-                    stream_ = nullptr;
-                }
-
-                process::nextTick([&](){
-                    emit<ev::error>(exception);
-                    emit<ev::close2>(true);
-                });
+            virtual void destroy()
+            {
+                destroy_(false, Exception());
             }
 
             virtual void pause()
@@ -302,42 +241,11 @@ namespace native
 
             virtual void resume()
             {
-            }
-
-            // TODO: integrate with destroy(Exception)
-            virtual void destroy()
-            {
-                if(destroyed_) return;
-
-                connect_queue_cleanup();
-
-                readable(false);
-                writable(false);
-
-                timers::unenroll(this);
-
-                // Because of C++ declration order, we cannot call Server class member functions here.
-                // Instead, Server handles this using delegate.
-#if 1
-                if(on_destroy_callback_) on_destroy_callback_();
-#else
-                if(server_)
-                {
-                    //server_->connections_--;
-                    //server_->emitCloseIfDrained();
-                }
-#endif
-
                 if(stream_)
                 {
-                    stream_->close();
-                    stream_->set_on_read_callback(nullptr);
-                    stream_ = nullptr;
+                    stream_->read_start();
+                    stream_->ref(); // See tcp::unref() does nothing.
                 }
-
-                process::nextTick([&](){
-                    emit<ev::close2>(false);
-                });
             }
 
             virtual void destroySoon()
@@ -352,11 +260,91 @@ namespace native
             }
 
         private:
+            virtual void destroy_(bool failed, Exception exception)
+            {
+                if(destroyed_) return;
+
+                connect_queue_cleanup();
+
+                readable(false);
+                writable(false);
+
+                timers::unenroll(this);
+
+                // Because of C++ declration order, we cannot call Server class member functions here.
+                // Instead, Server handles this using delegate.
+#if 1
+                if(on_destroy_callback_) on_destroy_callback_();
+#else
+                if(server_)
+                {
+                    //server_->connections_--;
+                    //server_->emitCloseIfDrained();
+                }
+#endif
+
+                if(stream_)
+                {
+                    stream_->close();
+                    stream_->set_on_read_callback(nullptr);
+                    stream_ = nullptr;
+                }
+
+                process::nextTick([&](){
+                    if(failed) emit<ev::error>(exception);
+
+                    // TODO: node.js implementation pass one argument whether there was errors or not.
+                    //emit<ev::close>(failed);
+                    emit<ev::close>();
+                });
+            }
+
             void connect_queue_cleanup()
             {
                 connecting_ = false;
                 connect_queue_size_ = 0;
                 connect_queue_.clear();
+            }
+
+            void on_read(const char* buffer, std::size_t offset, std::size_t length, detail::error e)
+            {
+                timers::active(this);
+
+                std::size_t end_pos = offset + length;
+                if(buffer)
+                {
+                    // TODO: implement decoding
+                    // ..
+                    if(haveListener<ev::data>()) emit<ev::data>(Buffer(&buffer[offset], length));
+
+                    bytes_read_ += length;
+
+                    if(on_data_callback_) on_data_callback_(buffer, offset, end_pos);
+                }
+                else
+                {
+                    if(e.code() == UV_EOF)
+                    {
+                        readable(false);
+
+                        assert(!(flags_ & FLAG_GOT_EOF));
+                        flags_ |= FLAG_GOT_EOF;
+
+                        if(!writable()) destroy();
+
+                        if(!allow_half_open_) end();
+                        if(haveListener<ev::end>()) emit<ev::end>();
+                        if(on_end_callback_) on_end_callback_();
+                    }
+                    else if(e.code() == ECONNRESET)
+                    {
+                        destroy();
+                    }
+                    else
+                    {
+                        destroy(Exception(e));
+                    }
+                }
             }
 
         private:
