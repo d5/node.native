@@ -64,6 +64,9 @@ namespace native
             virtual void state_change() {
             }
 
+            uv_handle_t* uv_handle() { return handle_; }
+            const uv_handle_t* uv_handle() const { return handle_; }
+
         private:
             uv_handle_t* handle_;
             bool unref_;

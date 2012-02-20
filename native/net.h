@@ -79,6 +79,7 @@ namespace native
         protected:
             Socket(detail::stream* handle, Server* server, bool allowHalfOpen)
                 : Stream(handle, true, true)
+                , socket_type_(SocketType::None)
                 , stream_(handle)
                 , server_(server)
                 , flags_(0)
@@ -94,6 +95,7 @@ namespace native
                 , on_end_callback_()
                 , on_destroy_callback_()
             {
+                // register events
                 registerEvent<event::connect>();
                 registerEvent<event::data>();
                 registerEvent<event::end>();
@@ -104,9 +106,21 @@ namespace native
 
                 if(stream_)
                 {
+                    // set on_read callback
                     stream_->set_on_read_callback([&](const char* buffer, std::size_t offset, std::size_t length, detail::error e){
                         on_read(buffer, offset, length, e);
                     });
+
+                    // identify socket type
+                    if(stream_->uv_stream()->type == UV_TCP)
+                    {
+                        // TODO: cannot identify IPv6 socket type!
+                        socket_type_ = SocketType::IPv4;
+                    }
+                    else if(stream_->uv_stream()->type == UV_NAMED_PIPE)
+                    {
+                        socket_type_ = SocketType::Pipe;
+                    }
                 }
             }
 
@@ -259,6 +273,129 @@ namespace native
                 }
             }
 
+            void setTimeout(unsigned int msecs, std::function<void()> callback=nullptr)
+            {
+                if(msecs > 0)
+                {
+                    timers::enroll(this, msecs);
+                    timers::active(this);
+
+                    if(callback) once<event::timeout>(callback);
+                }
+                else // msecs == 0
+                {
+                    timers::unenroll(this);
+                }
+            }
+
+            bool setNoDelay()
+            {
+                if(socket_type_ == SocketType::IPv4 || socket_type_ == SocketType::IPv6)
+                {
+                    auto x = dynamic_cast<detail::tcp*>(stream_);
+                    assert(x);
+
+                    x->set_no_delay(true);
+                    return true;
+                }
+
+                return false;
+            }
+
+            bool setKeepAlive(bool enable, unsigned int initialDelay=0)
+            {
+                if(socket_type_ == SocketType::IPv4 || socket_type_ == SocketType::IPv6)
+                {
+                    auto x = dynamic_cast<detail::tcp*>(stream_);
+                    assert(x);
+
+                    x->set_keepalive(enable, initialDelay/1000);
+                    return true;
+                }
+
+                return false;
+            }
+
+            // TODO: only IPv4 supported.
+            bool address(std::string& ip_or_pipe_name, int& port)
+            {
+                if(!stream_) return SocketType::None;
+
+                switch(socket_type_)
+                {
+                case SocketType::IPv4:
+                case SocketType::IPv6:
+                    {
+                        auto x = dynamic_cast<detail::tcp*>(stream_);
+                        assert(x);
+
+                        bool b;
+                        x->get_sock_name(b, ip_or_pipe_name, port);
+                        assert(b == true);
+                    }
+                    return true;
+
+                default:
+                    return false;
+                }
+            }
+
+            std::string readyState() const
+            {
+                if(connecting_) return "opening";
+                else if(readable() && writable()) return "open";
+                else if(readable() && !writable()) return "readOnly";
+                else if(!readable() && writable()) return "writeOnly";
+                else return "closed";
+            }
+
+            std::size_t bufferSize() const
+            {
+                if(stream_)
+                {
+                    return stream_->write_queue_size() + connect_queue_size_;
+                }
+                return 0;
+            }
+
+            std::string remoteAddress() const
+            {
+                if(socket_type_ == SocketType::IPv4 || socket_type_ == SocketType::IPv6)
+                {
+                    auto x = dynamic_cast<detail::tcp*>(stream_);
+                    assert(x);
+
+                    bool is_ipv4;
+                    std::string ip;
+                    int port;
+                    x->get_peer_name(is_ipv4, ip, port);
+                    assert(is_ipv4 == (socket_type_ == SocketType::IPv4));
+
+                    return ip;
+                }
+
+                return std::string();
+            }
+
+            int remotePort() const
+            {
+                if(socket_type_ == SocketType::IPv4 || socket_type_ == SocketType::IPv6)
+                {
+                    auto x = dynamic_cast<detail::tcp*>(stream_);
+                    assert(x);
+
+                    bool is_ipv4;
+                    std::string ip;
+                    int port;
+                    x->get_peer_name(is_ipv4, ip, port);
+                    assert(is_ipv4 == (socket_type_ == SocketType::IPv4));
+
+                    return port;
+                }
+
+                return 0;
+            }
+
         private:
             virtual void destroy_(bool failed, Exception exception)
             {
@@ -349,6 +486,7 @@ namespace native
 
         private:
             detail::stream* stream_;
+            int socket_type_;
 
             int flags_;
             bool allow_half_open_;

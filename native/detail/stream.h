@@ -150,6 +150,9 @@ namespace native
 
             virtual error listen(int backlog, std::function<void(stream*, error)> callback) = 0;
 
+            uv_stream_t* uv_stream() { return stream_; }
+            const uv_stream_t* uv_stream() const { return stream_; }
+
         private:
             static uv_buf_t on_alloc(uv_handle_t* h, size_t suggested_size)
             {

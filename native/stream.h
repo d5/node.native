@@ -38,8 +38,7 @@ namespace native
         bool writable() const { return writable_; }
 
         // TODO: implement Stream::setEncoding() function.
-        void setEncoding(const std::string& encoding)
-        {}
+        virtual void setEncoding(const std::string& encoding) {}
 
         virtual void pause() = 0;
         virtual void resume() = 0;
