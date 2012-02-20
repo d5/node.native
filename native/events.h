@@ -3,7 +3,6 @@
 
 #include "base.h"
 #include "utility.h"
-#include "object.h"
 
 namespace native
 {
@@ -24,9 +23,9 @@ namespace native
         struct close : public util::callback_def<> {};
         struct close2 : public util::callback_def<bool> {};
         struct drain : public util::callback_def<> {};
-        struct pipe : public util::callback_def<Stream&> {};
+        struct pipe : public util::callback_def<Stream*> {};
         struct secure : public util::callback_def<> {};
-        struct secureConnection : public util::callback_def<Stream&> {};
+        struct secureConnection : public util::callback_def<Stream*> {};
         struct clientError : public util::callback_def<const Exception&> {};
         struct secureConnect : public util::callback_def<> {};
         struct open : public util::callback_def<int> {};
@@ -37,7 +36,7 @@ namespace native
         struct timeout: public util::callback_def<> {};
     }
 
-    class EventEmitter : public Object
+    class EventEmitter
     {
     protected:
         EventEmitter() : events_() {}
