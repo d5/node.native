@@ -3,14 +3,12 @@
 
 #include "base.h"
 #include "detail.h"
+#include "error.h"
 #include "buffers.h"
 #include "events.h"
 
 namespace native
 {
-    class Stream;
-    typedef std::shared_ptr<Stream> StreamPtr;
-
     class Stream : public EventEmitter
     {
     public:
@@ -28,11 +26,6 @@ namespace native
             registerEvent<ev::close>();
             if(writable_) registerEvent<ev::drain>();
             if(writable_) registerEvent<ev::pipe>();
-
-            if(readable_)
-            {
-                // TODO: start reading!
-            }
         }
 
         virtual ~Stream()
@@ -43,12 +36,14 @@ namespace native
         bool writable() const { return writable_; }
 
         // TODO: implement Stream::setEncoding() function.
-        void setEncoding(const std::string& encoding) { }
+        void setEncoding(const std::string& encoding)
+        {}
 
-        virtual bool pause() { return false; }
-        virtual bool resume() { return false; }
-        virtual bool destroy() { return false; }
-        virtual bool destroySoon() { return false; }
+        virtual void pause() = 0;
+        virtual void resume() = 0;
+        virtual void destroy(Exception exception) = 0;
+        virtual void destroy() = 0;
+        virtual void destroySoon() = 0;
 
         virtual bool pipe(Stream& destination, const util::dict& options)
         {
@@ -104,12 +99,16 @@ namespace native
             return false;
         }
 
-        virtual bool write(const std::string& str, const std::string& encoding, int fd) { return false; }
-        virtual bool write(const Buffer& buffer) { return false; }
+        virtual bool write(const Buffer& buffer, std::function<void()> callback=nullptr) = 0;
+        virtual bool write(const std::string& str, const std::string& encoding, int fd) = 0;
 
-        virtual bool end(const std::string& str, const std::string& encoding, int fd) { return false; }
-        virtual bool end(const Buffer& buffer) { return false; }
-        virtual bool end() { return false; }
+        virtual bool end(const Buffer& buffer) = 0;
+        virtual bool end(const std::string& str, const std::string& encoding, int fd) = 0;
+        virtual bool end() = 0;
+
+    protected:
+        void writable(bool b) { writable_ = b; }
+        void readable(bool b) { readable_ = b; }
 
     private:
         detail::stream* stream_;

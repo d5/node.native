@@ -21,6 +21,10 @@ namespace native
             : message_(message + "\n" + e.str())
         {}
 
+        Exception(std::nullptr_t)
+            : message_()
+        {}
+
         virtual ~Exception()
         {}
 

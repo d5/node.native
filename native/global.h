@@ -6,10 +6,6 @@
 
 namespace native
 {
-    class Buffer
-    {
-    };
-
     class console
     {
     };

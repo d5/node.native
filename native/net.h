@@ -6,18 +6,13 @@
 #include "stream.h"
 #include "error.h"
 #include "process.h"
+#include "timers.h"
 #include <arpa/inet.h>
 
 namespace native
 {
     namespace net
     {
-        class Server;
-        typedef std::shared_ptr<Server> ServerPtr;
-
-        class Socket;
-        typedef std::shared_ptr<Socket> SocketPtr;
-
         /**
          *  @brief Gets the version of IP address format.
          *
@@ -70,14 +65,18 @@ namespace native
             };
         };
 
+        class Server;
+
         class Socket : public Stream
         {
+            friend class Server;
+
             static constexpr int FLAG_GOT_EOF = 1 << 0;
             static constexpr int FLAG_SHUTDOWN = 1 << 1;
-            static constexpr int FLAG_DESTROY_SOON = 1 << 0;
-            static constexpr int FLAG_SHUTDOWNQUED = 1 << 1;
+            static constexpr int FLAG_DESTROY_SOON = 1 << 2;
+            static constexpr int FLAG_SHUTDOWNQUED = 1 << 3;
 
-        public:
+        protected:
             Socket(detail::stream* handle, Server* server, bool allowHalfOpen)
                 : Stream(handle, true, true)
                 , stream_(handle)
@@ -85,10 +84,280 @@ namespace native
                 , flags_(0)
                 , allow_half_open_(allowHalfOpen)
                 , connecting_(false)
-            {}
+                , destroyed_(false)
+                , bytes_written_(0)
+                , bytes_read_(0)
+                , pending_write_reqs_()
+                , connect_queue_size_(0)
+                , connect_queue_()
+                , on_data_callback_()
+                , on_end_callback_()
+                , on_destroy_callback_()
+            {
+                registerEvent<ev::connect>();
+                registerEvent<ev::data>();
+                registerEvent<ev::end>();
+                registerEvent<ev::timeout>();
+                registerEvent<ev::drain>();
+                registerEvent<ev::error>();
+                registerEvent<ev::close2>();
+
+                if(stream_)
+                {
+                    stream_->set_on_read_callback([&](const char* buffer, std::size_t offset, std::size_t length, detail::error e){
+                        timers::active(this);
+
+                        std::size_t end_pos = offset + length;
+                        if(buffer)
+                        {
+                            // TODO: implement decoding
+                            // ..
+                            if(haveListener<ev::data>()) emit<ev::data>(Buffer(&buffer[offset], length));
+
+                            bytes_read_ += length;
+
+                            if(on_data_callback_) on_data_callback_(buffer, offset, end_pos);
+                        }
+                        else
+                        {
+                            if(e.code() == UV_EOF)
+                            {
+                                readable(false);
+
+                                assert(!(flags_ & FLAG_GOT_EOF));
+                                flags_ |= FLAG_GOT_EOF;
+
+                                if(!writable()) destroy();
+
+                                if(!allow_half_open_) end();
+                                if(haveListener<ev::end>()) emit<ev::end>();
+                                if(on_end_callback_) on_end_callback_();
+                            }
+                            else if(e.code() == ECONNRESET)
+                            {
+                                destroy();
+                            }
+                            else
+                            {
+                                destroy(Exception(e));
+                            }
+                        }
+                    });
+                }
+            }
 
             virtual ~Socket()
             {}
+
+        public:
+            virtual bool end(const Buffer& buffer)
+            {
+                if(connecting_ && ((flags_ & FLAG_SHUTDOWNQUED) == 0))
+                {
+                    if(buffer.size()) write(buffer);
+                    writable(false);
+                    flags_ |= FLAG_SHUTDOWNQUED;
+                }
+
+                if(!writable()) return false;
+                writable(false);
+
+                if(buffer.size()) write(buffer);
+
+                if(!readable())
+                {
+                    destroySoon();
+                }
+                else
+                {
+                    flags_ |= FLAG_SHUTDOWN;
+                    detail::error e = stream_->shutdown([&](detail::error e){
+                        assert(flags_ & FLAG_SHUTDOWN);
+                        assert(!writable());
+
+                        if(destroyed_) return;
+
+                        if((flags_ & FLAG_GOT_EOF) || !readable())
+                        {
+                            destroy();
+                        }
+                    });
+                    if(e)
+                    {
+                        destroy(e);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            virtual bool end(const std::string& str, const std::string& encoding=std::string(), int fd=-1)
+            {
+                // TODO: what about 'fd'?
+                return end(Buffer(str, encoding));
+            }
+            virtual bool end()
+            {
+                return end(Buffer(nullptr));
+            }
+
+            // TODO: these overloads are inherited but not used for Socket.
+            //virtual bool write(const Buffer& buffer) { assert(false); return false; } //-> virtual bool write(const Buffer& buffer, write_callback_type callback=nullptr)
+            virtual bool write(const std::string& str, const std::string& encoding, int fd) { assert(false); return false; }
+
+            // TODO: this is not inherited from Stream - a new overload.
+            // callback is invoked after all data is written.
+            virtual bool write(const Buffer& buffer, std::function<void()> callback=nullptr)
+            {
+                bytes_written_ += buffer.size();
+
+                if(connecting_)
+                {
+                    connect_queue_size_ += buffer.size();
+                    connect_queue_.push_back(std::make_pair(std::shared_ptr<Buffer>(new Buffer(buffer)), callback));
+                    return false;
+                }
+
+                timers::active(this);
+
+                if(!stream_) throw Exception("The socket is closed.");
+
+                detail::error e = stream_->write(buffer.base(), 0, buffer.size(), [=](detail::error err){
+                    if(destroyed_) return;
+
+                    if(err)
+                    {
+                        destroy(err);
+                        return;
+                    }
+
+                    timers::active(this);
+
+                    pending_write_reqs_--;
+                    if(pending_write_reqs_ == 0) emit<ev::drain>();
+
+                    if(callback) callback();
+
+                    if((pending_write_reqs_== 0) && (flags_ & FLAG_DESTROY_SOON))
+                    {
+                        destroy();
+                    }
+                });
+                if(e)
+                {
+                    destroy(e);
+                    return false;
+                }
+
+                pending_write_reqs_++;
+
+                return stream_->write_queue_size() == 0;
+            }
+
+            virtual void destroy(Exception exception)
+            {
+                if(destroyed_) return;
+
+                connect_queue_cleanup();
+
+                readable(false);
+                writable(false);
+
+                timers::unenroll(this);
+
+                // Because of C++ declration order, we cannot call Server class member functions here.
+                // Instead, Server handles this using delegate.
+#if 1
+                if(on_destroy_callback_) on_destroy_callback_();
+#else
+                if(server_)
+                {
+                    //server_->connections_--;
+                    //server_->emitCloseIfDrained();
+                }
+#endif
+
+                if(stream_)
+                {
+                    stream_->close();
+                    stream_->set_on_read_callback(nullptr);
+                    stream_ = nullptr;
+                }
+
+                process::nextTick([&](){
+                    emit<ev::error>(exception);
+                    emit<ev::close2>(true);
+                });
+            }
+
+            virtual void pause()
+            {
+                if(stream_)
+                {
+                    stream_->read_stop();
+                    stream_->unref(); // See tcp::unref() does nothing.
+                }
+            }
+
+            virtual void resume()
+            {
+            }
+
+            // TODO: integrate with destroy(Exception)
+            virtual void destroy()
+            {
+                if(destroyed_) return;
+
+                connect_queue_cleanup();
+
+                readable(false);
+                writable(false);
+
+                timers::unenroll(this);
+
+                // Because of C++ declration order, we cannot call Server class member functions here.
+                // Instead, Server handles this using delegate.
+#if 1
+                if(on_destroy_callback_) on_destroy_callback_();
+#else
+                if(server_)
+                {
+                    //server_->connections_--;
+                    //server_->emitCloseIfDrained();
+                }
+#endif
+
+                if(stream_)
+                {
+                    stream_->close();
+                    stream_->set_on_read_callback(nullptr);
+                    stream_ = nullptr;
+                }
+
+                process::nextTick([&](){
+                    emit<ev::close2>(false);
+                });
+            }
+
+            virtual void destroySoon()
+            {
+                writable(false);
+                flags_ |= FLAG_DESTROY_SOON;
+
+                if(pending_write_reqs_ == 0)
+                {
+                    destroy();
+                }
+            }
+
+        private:
+            void connect_queue_cleanup()
+            {
+                connecting_ = false;
+                connect_queue_size_ = 0;
+                connect_queue_.clear();
+            }
 
         private:
             detail::stream* stream_;
@@ -96,15 +365,31 @@ namespace native
             int flags_;
             bool allow_half_open_;
             bool connecting_;
+            bool destroyed_;
 
             Server* server_;
+
+            std::size_t bytes_written_;
+            std::size_t bytes_read_;
+            std::size_t pending_write_reqs_;
+
+            std::size_t connect_queue_size_;
+            std::vector<std::pair<std::shared_ptr<Buffer>, std::function<void()>>> connect_queue_;
+
+            // ondata: (buffer, offset, end)
+            std::function<void(const char*, std::size_t, std::size_t)> on_data_callback_;
+
+            std::function<void()> on_end_callback_;
+
+            // TODO: only Server class must use this delegate.
+            std::function<void()> on_destroy_callback_;
         };
 
         class Server : public EventEmitter
         {
-            friend ServerPtr createServer(ev::connection::callback_type, bool);
+            friend Server* createServer(std::function<void(Server*)>, bool);
 
-            Server(bool allowHalfOpen, ev::connection::callback_type callback)
+            Server(bool allowHalfOpen)
                 : EventEmitter()
                 , stream_(nullptr)
                 , connections_(0)
@@ -118,14 +403,12 @@ namespace native
                 registerEvent<ev::connection>();
                 registerEvent<ev::close>();
                 registerEvent<ev::error>();
-
-                if(callback) on<ev::connection>(callback);
             }
 
-        public:
             virtual ~Server()
             {}
 
+        public:
             // listen over TCP socket
             bool listen(int port, const std::string& host=std::string("0.0.0.0"), ev::listening::callback_type listeningListener=nullptr)
             {
@@ -288,10 +571,15 @@ namespace native
                         auto socket = new Socket(s, this, allow_half_open_);
                         assert(socket);
 
+                        socket->on_destroy_callback_ = [&](){
+                            connections_--;
+                            emitCloseIfDrained();
+                        };
+
                         socket->resume();
 
                         connections_++;
-                        emit<ev::connection>(SocketPtr(socket));
+                        emit<ev::connection>(socket);
 
                         socket->emit<ev::connect>();
                     }
@@ -323,9 +611,16 @@ namespace native
             std::string pipe_name_;
         };
 
-        ServerPtr createServer(ev::connection::callback_type callback=nullptr, bool allowHalfOpen=false)
+        Server* createServer(std::function<void(Server*)> callback, bool allowHalfOpen=false)
         {
-            return ServerPtr(new Server(allowHalfOpen, callback));
+            auto x = new Server(allowHalfOpen);
+            assert(x);
+
+            process::nextTick([=](){
+                callback(x);
+            });
+
+            return x;
         }
     }
 }

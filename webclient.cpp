@@ -6,16 +6,19 @@ using namespace native;
 
 #include <native/net.h>
 
-int main() {
-    Node::instance().init();
-
-    auto server = net::createServer([](net::SocketPtr socket){
-        std::cout << "Accepted" << std::endl;
+int main(int argc, char** argv)
+{
+    return run([=]() {
+        net::createServer([](net::Server* server){
+            server->on<ev::connection>([](net::Socket* socket){
+                std::cout << "Accepted." << std::endl;
+                socket->end("Hello, World!\r\n");
+            });
+            server->on<ev::error>([=](Exception e){
+                std::cout << "Error: " << e.message() << std::endl;
+                server->close();
+            });
+            server->listen(1337, "127.0.0.1");
+        });
     });
-    server->on<ev::error>([](Exception e){
-        std::cout << "Error: " << e.message() << std::endl;
-    });
-    server->listen(1337, "127.0.0.1");
-
-    return Node::instance().start();
 }

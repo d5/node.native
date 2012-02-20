@@ -18,7 +18,7 @@ namespace native
         struct uncaughtException : public util::callback_def<const Exception&> {};
         // TODO: hmm... event id(int) and listner(void*)
         struct newListener : public util::callback_def<int, void*> {};
-        struct data : public util::callback_def<const std::vector<char>&> {};
+        struct data : public util::callback_def<const Buffer&> {};
         struct end : public util::callback_def<> {};
         struct error : public util::callback_def<Exception> {};
         struct close : public util::callback_def<> {};
@@ -32,8 +32,9 @@ namespace native
         struct open : public util::callback_def<int> {};
         struct change : public util::callback_def<int, const std::string&> {};
         struct listening : public util::callback_def<> {};
-        struct connection : public util::callback_def<std::shared_ptr<net::Socket>> {};
+        struct connection : public util::callback_def<net::Socket*> {};
         struct connect: public util::callback_def<> {};
+        struct timeout: public util::callback_def<> {};
     }
 
     class EventEmitter : public Object
@@ -108,6 +109,18 @@ namespace native
             return false;
         }
 
+        template<typename E>
+        bool haveListener() const
+        {
+            auto s = events_.find(typeid(E).hash_code());
+            if(s != events_.end())
+            {
+                return s->second->callback_count() > 0;
+            }
+
+            return false;
+        }
+
     protected:
         template<typename E>
         bool registerEvent()
@@ -119,7 +132,6 @@ namespace native
             if(!res.second)
             {
                 // Two event IDs conflict
-                assert(false);
                 return false;
             }
             return true;

@@ -5,8 +5,6 @@ using namespace native;
 // usage: (executable)  src_file  dest_file
 
 int main(int argc, char** argv) {
-    Node::instance().init();
-
     /*
     if(argc < 3) {
         std::cout << "usage: " << argv[0] << " SRC_FILE DEST_FILE" << std::endl;
@@ -29,5 +27,5 @@ int main(int argc, char** argv) {
         }
     });
     */
-    return Node::instance().start();
+    return 0;
 }
