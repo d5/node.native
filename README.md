@@ -6,22 +6,23 @@ Please note that <b>node.native</b> project is <em>under heavy development</em>:
 
 ## Sample code
 
-Simplest web-server example using node.native.
+Simple echo server:
 
-    #include <iostream>
-    #include <native/native.h>
-    using namespace native::http;
+    #include "native.h"
+    using namespace native;
     
-    int main() {
-        http server;
-        if(!server.listen("0.0.0.0", 8080, [](request& req, response& res) {
-            res.set_status(200);
-            res.set_header("Content-Type", "text/plain");
-            res.end("C++ FTW\n");
-        })) return 1; // Failed to run server.
-    
-        std::cout << "Server running at http://0.0.0.0:8080/" << std::endl;
-        return native::run();
+    int main(int argc, char** argv) {
+        return run([=]() {
+            net::createServer([](net::Server* server){
+                server->on<ev::connection>([](net::Socket* socket){
+                    socket->pipe(socket, {});
+                });
+                server->on<ev::error>([=](Exception e){
+                    server->close();
+                });
+                server->listen(1337, "127.0.0.1");
+            });
+        });
     }
 
 ## Getting started
