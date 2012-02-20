@@ -6,6 +6,9 @@ doc/html/*
 doc/latex/*
 wiki/*
 
-webclient
+echo
 webserver
 file_test
+
+*.a
+*.o

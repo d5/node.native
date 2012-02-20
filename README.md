@@ -27,14 +27,7 @@ Simple echo server:
 
 ## Getting started
 
-<em>node.native</em> consists of header files(*.h) only, but requires [libuv](https://github.com/joyent/libuv) and [http-parser](https://github.com/joyent/http-parser) lib to use.
-
-To compile included sample application(webserver.cpp):
-
-    export LIBUV_PATH=/path/to/libuv_dir
-    export HTTP_PARSER_PATH=/path/to/http-parser_dir
-
-then,
+To compile <b>native.a</b> and sample apps: 
 
     make
 

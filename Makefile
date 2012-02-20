@@ -1,4 +1,4 @@
-CXXFLAGS = -std=gnu++0x -g -O0 -I$(LIBUV_PATH)/include -I$(HTTP_PARSER_PATH) -I. -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
+CXXFLAGS = -std=gnu++0x -g -O0 -Ideps/libuv/include -Ideps/http-parser -I. -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
 OS_NAME=$(shell uname -s)
 ifeq (${OS_NAME},Darwin)
@@ -7,18 +7,34 @@ else
 	RTLIB=-lrt
 endif
 
-all: echo
+all: native.a echo
 
-echo: echo.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h) $(wildcard native/detail/*.h) native.h
-	$(CXX) $(CXXFLAGS) -o echo echo.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
+echo: native.a echo.cpp 
+	$(CXX) $(CXXFLAGS) -o echo echo.cpp native.a $(RTLIB) -lm -lpthread
 
-$(LIBUV_PATH)/uv.a:
-	$(MAKE) -C $(LIBUV_PATH)
+native.a: deps/libuv/uv.a deps/http-parser/http_parser.o native.o
+	mkdir -p objs
+	cd objs; \
+	ar x ../deps/libuv/uv.a; \
+	cp ../deps/http-parser/http_parser.o .; \
+	cp ../native.o .; \
+	ar rcs native.a *.o; \
+	cp native.a ../; \
+	cd ..; \
+	rm -rf objs	
 
-$(HTTP_PARSER_PATH)/http_parser.o:
-	$(MAKE) -C $(HTTP_PARSER_PATH) http_parser.o
+deps/libuv/uv.a:
+	$(MAKE) -C deps/libuv
+
+deps/http-parser/http_parser.o:
+	$(MAKE) -C deps/http-parser http_parser.o
+	
+native.o: native.cpp native.h $(wildcard native/*.h) $(wildcard native/detail/*.h) 
+	$(CXX) $(CXXFLAGS) -o native.o -c native.cpp $(RTLIB) -lm -lpthread	
 	
 clean:
-	rm -f $(LIBUV_PATH)/uv.a
-	rm -f $(HTTP_PARSER_PATH)/http_parser.o
+	rm -f deps/libuv/uv.a
+	rm -f deps/http-parser/http_parser.o
+	rm -f native.a
 	rm -f echo
+	rm -rf objs
