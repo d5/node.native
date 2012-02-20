@@ -214,7 +214,7 @@ namespace native
             sigslot_base() {}
             virtual ~sigslot_base() {}
         public:
-            virtual void add_callback(void*) = 0;
+            virtual void add_callback(void*, bool once=false) = 0;
             virtual bool remove_callback(void*) = 0;
             virtual void reset() = 0;
             virtual std::size_t callback_count() const = 0;
@@ -240,54 +240,74 @@ namespace native
             }
 
         public:
-            virtual void add_callback(void* callback)
+            virtual void add_callback(void* callback, bool once=false)
             {
-                callbacks_.insert(callback_ptr(reinterpret_cast<callback_type*>(callback)));
+                assert(callback);
+
+                // wrap the callback object with shared_ptr<>.
+                callbacks_.push_back(std::make_pair(callback_ptr(reinterpret_cast<callback_type*>(callback)), once));
             }
 
             virtual bool remove_callback(void* callback)
             {
+                // find the matching callback
                 auto d = callbacks_.end();
                 for(auto it=callbacks_.begin();it!=callbacks_.end();++it)
                 {
-                    if(reinterpret_cast<void*>(it->get()) == callback)
+                    if(reinterpret_cast<void*>(it->first.get()) == callback)
                     {
                         d = it;
                         break;
                     }
                 }
 
+                // if found: delete it from the list.
                 if(d != callbacks_.end())
                 {
                     callbacks_.erase(d);
                     return true;
                 }
 
+                // failed to find the callback
                 return false;
             }
 
             virtual void reset()
             {
+                // delete all callbacks
                 callbacks_.clear();
             }
 
             virtual std::size_t callback_count() const
             {
+                // the number of callbacks
                 return callbacks_.size();
             }
 
             template<typename ...A>
             void invoke(A&&... args)
             {
+                // set of callbacks to delete after execution.
+                std::set<callback_ptr> to_delete;
+
+                // copy callback list: to avoid modification inside the 'for' loop.
                 auto callbacks_copy = callbacks_;
                 for(auto c : callbacks_copy)
                 {
-                    if(*c) (*c)(std::forward<A>(args)...);
+                    // execute the callback
+                    if(*c.first) (*c.first)(std::forward<A>(args)...);
+                    // if it's marked as 'once': add to delete list.
+                    if(c.second) to_delete.insert(c.first);
                 }
+
+                // remove 'once' callbacks
+                callbacks_.remove_if([&](std::pair<callback_ptr, bool>& it) {
+                    return to_delete.find(it.first) != to_delete.end();
+                });
             }
 
         private:
-            std::set<callback_ptr> callbacks_;
+            std::list<std::pair<callback_ptr, bool>> callbacks_;
         };
     }
 }

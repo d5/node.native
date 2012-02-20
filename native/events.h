@@ -35,22 +35,41 @@ namespace native
         struct timeout: public util::callback_def<> {};
     }
 
+    /**
+     *  EventEmitter class.
+     */
     class EventEmitter
     {
     protected:
+        /**
+         *  To create an EventEmitter object, you must define a new class inheriting from EventEmitter.
+         *  Before you can call addListener() or emit() function, you have to register the events that you want to accept.
+         *  Typically, you can register events in your class contructor.
+         */
         EventEmitter()
             : events_()
-        {
-        }
+        {}
 
     public:
         virtual ~EventEmitter()
-        {
-        }
+        {}
 
     public:
+        /**
+         *  addListener(), on(), and once() function returns listener_t object which is just an untyped pointer.
+         *  If you're going to remove a listener from EventEmitter, you have to save this returned value.
+         */
         typedef void* listener_t;
 
+        /**
+         *  Adds a listener for the event.
+         *
+         *  @param callback     Callback object.
+         *
+         *  @return             A unique value for the listener. This value is used as a parameter for removeListener() function.
+         *                      Even if you add the same callback object, this return value differ for each calls.
+         *                      If EventEmitter fails to add the listener, it returns nullptr.
+         */
         template<typename E>
         listener_t addListener(typename E::callback_type callback)
         {
@@ -65,12 +84,52 @@ namespace native
             return nullptr;
         }
 
+        /**
+         *  Adds a listener for the event.
+         *
+         *  @param callback     Callback object.
+         *
+         *  @return             A unique value for the listener. This value is used as a parameter for removeListener() function.
+         *                      Even if you add the same callback object, this return value differ for each calls.
+         *                      If EventEmitter fails to add the listener, it returns nullptr.
+         */
         template<typename E>
         listener_t on(typename E::callback_type callback)
         {
             return addListener<E>(callback);
         }
 
+        /**
+         *  Adds a listener for the event. This listener is deleted after it is invoked first time.
+         *
+         *  @param callback     Callback object.
+         *
+         *  @return             A unique value for the listener. This value is used as a parameter for removeListener() function.
+         *                      Even if you add the same callback object, this return value differ for each calls.
+         *                      If EventEmitter fails to add the listener, it returns nullptr.
+         */
+        template<typename E>
+        listener_t once(typename E::callback_type callback)
+        {
+            auto s = events_.find(typeid(E).hash_code());
+            if(s != events_.end())
+            {
+                auto ptr = new (decltype(callback))(callback);
+                s->second->add_callback(ptr, true);
+                return ptr;
+            }
+
+            return nullptr;
+        }
+
+        /**
+         *  Removes a listener for the event.
+         *
+         *  @param listener     A unique value for the listener. You must use the return value of addListener(), on(), or once() function.
+         *
+         *  @ret_val true       The listener was removed from EventEmitter.
+         *  @ret_val false      The listener was not found in EventEmitter, or the event was not registered.
+         */
         template<typename E>
         bool removeListener(listener_t listener)
         {
@@ -83,6 +142,12 @@ namespace native
             return false;
         }
 
+        /**
+         *  Removes all listeners for the event.
+         *
+         *  @ret_val true       All the listeners for the event were removed.
+         *  @ret_val false      The event was not registered.
+         */
         template<typename E>
         bool removeAllListeners()
         {
@@ -96,6 +161,12 @@ namespace native
             return false;
         }
 
+        /**
+         *  Invokes callbacks for the event.
+         *
+         *  @ret_val true       All the callbacks were invoked.
+         *  @ret_val false      The event was not registered.
+         */
         template<typename E, typename ...A>
         bool emit(A&&... args)
         {
@@ -112,6 +183,12 @@ namespace native
             return false;
         }
 
+        /**
+         *  Tests if one or more listeners are added for the event.
+         *
+         *  @ret_val true       One or more listeners are added for the event.
+         *  @ret_val false      No listener is added, or the event was not registered.
+         */
         template<typename E>
         bool haveListener() const
         {
@@ -125,6 +202,9 @@ namespace native
         }
 
     protected:
+        /**
+         *  Registers a new event.
+         */
         template<typename E>
         bool registerEvent()
         {
@@ -140,6 +220,9 @@ namespace native
             return true;
         }
 
+        /**
+         *  Unegisters the event.
+         */
         template<typename E>
         bool unregisterEvent()
         {
