@@ -94,13 +94,13 @@ namespace native
                 , on_end_callback_()
                 , on_destroy_callback_()
             {
-                registerEvent<ev::connect>();
-                registerEvent<ev::data>();
-                registerEvent<ev::end>();
-                registerEvent<ev::timeout>();
-                registerEvent<ev::drain>();
-                registerEvent<ev::error>();
-                registerEvent<ev::close>();
+                registerEvent<event::connect>();
+                registerEvent<event::data>();
+                registerEvent<event::end>();
+                registerEvent<event::timeout>();
+                registerEvent<event::drain>();
+                registerEvent<event::error>();
+                registerEvent<event::close>();
 
                 if(stream_)
                 {
@@ -200,7 +200,7 @@ namespace native
                     timers::active(this);
 
                     pending_write_reqs_--;
-                    if(pending_write_reqs_ == 0) emit<ev::drain>();
+                    if(pending_write_reqs_ == 0) emit<event::drain>();
 
                     if(callback) callback();
 
@@ -291,11 +291,11 @@ namespace native
                 }
 
                 process::nextTick([&](){
-                    if(failed) emit<ev::error>(exception);
+                    if(failed) emit<event::error>(exception);
 
                     // TODO: node.js implementation pass one argument whether there was errors or not.
-                    //emit<ev::close>(failed);
-                    emit<ev::close>();
+                    //emit<event::close>(failed);
+                    emit<event::close>();
                 });
             }
 
@@ -315,7 +315,7 @@ namespace native
                 {
                     // TODO: implement decoding
                     // ..
-                    if(haveListener<ev::data>()) emit<ev::data>(Buffer(&buffer[offset], length));
+                    if(haveListener<event::data>()) emit<event::data>(Buffer(&buffer[offset], length));
 
                     bytes_read_ += length;
 
@@ -333,7 +333,7 @@ namespace native
                         if(!writable()) destroy();
 
                         if(!allow_half_open_) end();
-                        if(haveListener<ev::end>()) emit<ev::end>();
+                        if(haveListener<event::end>()) emit<event::end>();
                         if(on_end_callback_) on_end_callback_();
                     }
                     else if(e.code() == ECONNRESET)
@@ -387,10 +387,10 @@ namespace native
                 , socket_type_(SocketType::None)
                 , pipe_name_()
             {
-                registerEvent<ev::listening>();
-                registerEvent<ev::connection>();
-                registerEvent<ev::close>();
-                registerEvent<ev::error>();
+                registerEvent<event::listening>();
+                registerEvent<event::connection>();
+                registerEvent<event::close>();
+                registerEvent<event::error>();
             }
 
             virtual ~Server()
@@ -398,13 +398,13 @@ namespace native
 
         public:
             // listen over TCP socket
-            bool listen(int port, const std::string& host=std::string("0.0.0.0"), ev::listening::callback_type listeningListener=nullptr)
+            bool listen(int port, const std::string& host=std::string("0.0.0.0"), event::listening::callback_type listeningListener=nullptr)
             {
                 return listen_(host, port, listeningListener);
             }
 
             // listen over unix-socket
-            bool listen(const std::string& path, ev::listening::callback_type listeningListener=nullptr)
+            bool listen(const std::string& path, event::listening::callback_type listeningListener=nullptr)
             {
                 return listen_(path, 0, listeningListener);
             }
@@ -472,7 +472,7 @@ namespace native
             {
                 if(stream_ || connections_) return;
 
-                process::nextTick([&](){ emit<ev::close>(); });
+                process::nextTick([&](){ emit<event::close>(); });
             }
 
             detail::stream* create_server_handle(const std::string& ip_or_pipe_name, int port)
@@ -526,9 +526,9 @@ namespace native
                 }
             }
 
-            bool listen_(const std::string& ip_or_pipe_name, int port, ev::listening::callback_type listeningListener)
+            bool listen_(const std::string& ip_or_pipe_name, int port, event::listening::callback_type listeningListener)
             {
-                if(listeningListener) on<ev::listening>(listeningListener);
+                if(listeningListener) on<event::listening>(listeningListener);
 
                 if(!stream_)
                 {
@@ -536,7 +536,7 @@ namespace native
                     if(!stream_)
                     {
                         process::nextTick([&](){
-                            emit<ev::error>(Exception("Failed to create a server socket (1)."));
+                            emit<event::error>(Exception("Failed to create a server socket (1)."));
                         });
                         return false;
                     }
@@ -545,7 +545,7 @@ namespace native
                 detail::error e = stream_->listen(backlog_, [&](detail::stream* s, detail::error e){
                     if(e)
                     {
-                        emit<ev::error>(Exception(e, "Failed to accept client socket (1)."));
+                        emit<event::error>(Exception(e, "Failed to accept client socket (1)."));
                     }
                     else
                     {
@@ -567,9 +567,9 @@ namespace native
                         socket->resume();
 
                         connections_++;
-                        emit<ev::connection>(socket);
+                        emit<event::connection>(socket);
 
-                        socket->emit<ev::connect>();
+                        socket->emit<event::connect>();
                     }
                 });
 
@@ -578,13 +578,13 @@ namespace native
                     stream_->close();
                     stream_ = nullptr;
                     process::nextTick([&](){
-                        emit<ev::error>(Exception(e, "Failed to initiate listening on server socket (1)."));
+                        emit<event::error>(Exception(e, "Failed to initiate listening on server socket (1)."));
                     });
                     return false;
                 }
 
                 process::nextTick([&](){
-                    emit<ev::listening>();
+                    emit<event::listening>();
                 });
                 return true;
             }

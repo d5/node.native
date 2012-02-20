@@ -22,12 +22,12 @@ namespace native
         {
             assert(stream_);
 
-            if(readable_) registerEvent<ev::data>();
-            if(readable_) registerEvent<ev::end>();
-            registerEvent<ev::error>();
-            registerEvent<ev::close>();
-            if(writable_) registerEvent<ev::drain>();
-            if(writable_) registerEvent<ev::pipe>();
+            if(readable_) registerEvent<event::data>();
+            if(readable_) registerEvent<event::end>();
+            registerEvent<event::error>();
+            registerEvent<event::close>();
+            if(writable_) registerEvent<event::drain>();
+            if(writable_) registerEvent<event::pipe>();
         }
 
         virtual ~Stream()
@@ -78,7 +78,7 @@ namespace native
                 assert(source_ && destination_);
 
                 // whenever data is available from source, copy it destination
-                source_on_data_ = source_->on<ev::data>([&](const Buffer& chunk){
+                source_on_data_ = source_->on<event::data>([&](const Buffer& chunk){
                     if(destination_->writable())
                     {
                         if(!destination_->write(chunk))
@@ -91,28 +91,28 @@ namespace native
                 });
 
                 // when the destination gets writable again, resume reading
-                dest_on_drain_ = destination_->on<ev::drain>([&](){
+                dest_on_drain_ = destination_->on<event::drain>([&](){
                     // TODO: some resources might not be supporting resume()
                     if(source_->readable()) source_->resume();
                 });
 
-                source_on_error_ = source_->on<ev::error>([&](Exception exception){ on_error(exception); });
-                dest_on_error_ = destination_->on<ev::error>([&](Exception exception){ on_error(exception); });
+                source_on_error_ = source_->on<event::error>([&](Exception exception){ on_error(exception); });
+                dest_on_error_ = destination_->on<event::error>([&](Exception exception){ on_error(exception); });
 
                 // assign "end", "close" event callback
                 if(!destination_->is_stdio_ && !options.compare("end", "false"))
                 {
-                    source_on_end_ = source_->on<ev::end>([&](){ on_end(); });
-                    source_on_close_ = source_->on<ev::close>([&](){ on_close(); });
+                    source_on_end_ = source_->on<event::end>([&](){ on_end(); });
+                    source_on_close_ = source_->on<event::close>([&](){ on_close(); });
                 }
 
-                source_on_end_clenaup_ = source_->on<ev::end>([&](){ cleanup(); });
-                source_on_close_clenaup_ = source_->on<ev::close>([&](){ cleanup(); });
+                source_on_end_clenaup_ = source_->on<event::end>([&](){ cleanup(); });
+                source_on_close_clenaup_ = source_->on<event::close>([&](){ cleanup(); });
 
-                dest_on_end_clenaup_ = destination_->on<ev::end>([&](){ cleanup(); });
-                dest_on_close_clenaup_ = destination_->on<ev::close>([&](){ cleanup(); });
+                dest_on_end_clenaup_ = destination_->on<event::end>([&](){ cleanup(); });
+                dest_on_close_clenaup_ = destination_->on<event::close>([&](){ cleanup(); });
 
-                destination_->emit<ev::pipe>(source_);
+                destination_->emit<event::pipe>(source_);
             }
 
             void on_error(Exception exception)
@@ -142,20 +142,20 @@ namespace native
 
             void cleanup()
             {
-                source_->removeListener<ev::data>(source_on_data_);
-                destination_->removeListener<ev::drain>(dest_on_drain_);
+                source_->removeListener<event::data>(source_on_data_);
+                destination_->removeListener<event::drain>(dest_on_drain_);
 
-                source_->removeListener<ev::end>(source_on_end_);
-                source_->removeListener<ev::close>(source_on_close_);
+                source_->removeListener<event::end>(source_on_end_);
+                source_->removeListener<event::close>(source_on_close_);
 
-                source_->removeListener<ev::error>(source_on_error_);
-                destination_->removeListener<ev::error>(dest_on_error_);
+                source_->removeListener<event::error>(source_on_error_);
+                destination_->removeListener<event::error>(dest_on_error_);
 
-                source_->removeListener<ev::end>(source_on_end_clenaup_);
-                source_->removeListener<ev::close>(source_on_close_clenaup_);
+                source_->removeListener<event::end>(source_on_end_clenaup_);
+                source_->removeListener<event::close>(source_on_close_clenaup_);
 
-                destination_->removeListener<ev::end>(dest_on_end_clenaup_);
-                destination_->removeListener<ev::close>(dest_on_close_clenaup_);
+                destination_->removeListener<event::end>(dest_on_end_clenaup_);
+                destination_->removeListener<event::close>(dest_on_close_clenaup_);
             }
 
             Stream* source_;

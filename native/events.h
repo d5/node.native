@@ -11,27 +11,173 @@ namespace native
     class Buffer;
     namespace net { class Socket; }
 
-    namespace ev
+    /**
+     *  All event types are defined under native::event namespace.
+     */
+    namespace event
     {
+        /**
+         *  @brief 'exit' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct exit : public util::callback_def<> {};
+        /**
+         *  @brief 'uncaughtException' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(const Exception& exception) @endcode
+         *
+         *  @param exception        The Exception object.
+         */
         struct uncaughtException : public util::callback_def<const Exception&> {};
-        // TODO: hmm... event id(int) and listner(void*)
-        struct newListener : public util::callback_def<int, void*> {};
+        /**
+         *  @brief 'data' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(const Buffer& buffer) @endcode
+         *
+         *  @param buffer           The Buffer object that contains the data.
+         */
         struct data : public util::callback_def<const Buffer&> {};
+        /**
+         *  @brief 'end' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct end : public util::callback_def<> {};
-        struct error : public util::callback_def<Exception> {};
+        /**
+         *  @brief 'error' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(const Exception& exception) @endcode
+         *
+         *  @param exception        The Exception object.
+         */
+        struct error : public util::callback_def<const Exception&> {};
+        /**
+         *  @brief 'close' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct close : public util::callback_def<> {};
+        /**
+         *  @brief 'drain' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct drain : public util::callback_def<> {};
+        /**
+         *  @brief 'pipe' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(Stream* stream) @endcode
+         *
+         *  @param stream       The source Stream object.
+         */
         struct pipe : public util::callback_def<Stream*> {};
+        /**
+         *  @brief 'secure' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct secure : public util::callback_def<> {};
+        /**
+         *  @brief 'secureConnection' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(Stream* stream) @endcode
+         *
+         *  @param stream       ...
+         */
         struct secureConnection : public util::callback_def<Stream*> {};
+        /**
+         *  @brief 'clientError' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(const Exception& exception) @endcode
+         *
+         *  @param exception       The Exception object.
+         */
         struct clientError : public util::callback_def<const Exception&> {};
+        /**
+         *  @brief 'secureConnect' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct secureConnect : public util::callback_def<> {};
+        /**
+         *  @brief 'open' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(int fd) @endcode
+         *
+         *  @param fd               File descriptor.
+         */
         struct open : public util::callback_def<int> {};
+        /**
+         *  @brief 'change' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(int fd, const std::string& p) @endcode
+         *
+         *  @param fd               File descriptor.
+         *  @param p                ...
+         */
         struct change : public util::callback_def<int, const std::string&> {};
+        /**
+         *  @brief 'listening' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct listening : public util::callback_def<> {};
+        /**
+         *  @brief 'data' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback(const Buffer& buffer) @endcode
+         *
+         *  @param buffer           The Buffer object that contains the data.
+         */
         struct connection : public util::callback_def<net::Socket*> {};
+        /**
+         *  @brief 'connect' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct connect: public util::callback_def<> {};
+        /**
+         *  @brief 'timeout' event.
+         *
+         *  @remark
+         *  Callback function has the following signature.
+         *  @code void callback() @endcode
+         */
         struct timeout: public util::callback_def<> {};
     }
 
@@ -127,8 +273,8 @@ namespace native
          *
          *  @param listener     A unique value for the listener. You must use the return value of addListener(), on(), or once() function.
          *
-         *  @ret_val true       The listener was removed from EventEmitter.
-         *  @ret_val false      The listener was not found in EventEmitter, or the event was not registered.
+         *  @retval true       The listener was removed from EventEmitter.
+         *  @retval false      The listener was not found in EventEmitter, or the event was not registered.
          */
         template<typename E>
         bool removeListener(listener_t listener)
@@ -145,8 +291,8 @@ namespace native
         /**
          *  Removes all listeners for the event.
          *
-         *  @ret_val true       All the listeners for the event were removed.
-         *  @ret_val false      The event was not registered.
+         *  @retval true       All the listeners for the event were removed.
+         *  @retval false      The event was not registered.
          */
         template<typename E>
         bool removeAllListeners()
@@ -164,8 +310,10 @@ namespace native
         /**
          *  Invokes callbacks for the event.
          *
-         *  @ret_val true       All the callbacks were invoked.
-         *  @ret_val false      The event was not registered.
+         *  @param args        Arguments for the callbacks.
+         *
+         *  @retval true       All the callbacks were invoked.
+         *  @retval false      The event was not registered.
          */
         template<typename E, typename ...A>
         bool emit(A&&... args)
@@ -186,8 +334,8 @@ namespace native
         /**
          *  Tests if one or more listeners are added for the event.
          *
-         *  @ret_val true       One or more listeners are added for the event.
-         *  @ret_val false      No listener is added, or the event was not registered.
+         *  @retval true       One or more listeners are added for the event.
+         *  @retval false      No listener is added, or the event was not registered.
          */
         template<typename E>
         bool haveListener() const
@@ -204,6 +352,9 @@ namespace native
     protected:
         /**
          *  Registers a new event.
+         *
+         *  @retval true       The event was newly registered.
+         *  @retval false      The same event was already registered.
          */
         template<typename E>
         bool registerEvent()
@@ -222,6 +373,8 @@ namespace native
 
         /**
          *  Unegisters the event.
+         *  @retval true       The event was unregistered.
+         *  @retval false      The event was not registered.
          */
         template<typename E>
         bool unregisterEvent()

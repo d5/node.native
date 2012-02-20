@@ -5,7 +5,7 @@
  *  @mainpage Documentation
  *
  *  @section Introduction
- *  Project URL: https://github.com/d5/node.native
+ *  Project URL: http://nodenative.com
  *
  */
 
@@ -14,8 +14,18 @@
 #include "native/utility.h"
 #include "native/net.h"
 
+/**
+ *  All types of node.native are defined under native namespace.
+ */
 namespace native
 {
+    /**
+     *  Starts the main loop with the callback.
+     *
+     *  @param callback     Callback object that is executed by node.native.
+     *
+     *  @return             This function always returns 0.
+     */
     int run(std::function<void()> callback)
     {
         return detail::node::instance().start(callback);
