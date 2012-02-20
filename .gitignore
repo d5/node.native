@@ -2,8 +2,6 @@
 .project
 .settings/*
 
-doc/html/*
-doc/latex/*
 wiki/*
 
 echo
