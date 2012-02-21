@@ -716,7 +716,7 @@ namespace native
                     }
                 }
 
-                detail::resval rv = stream_->listen(backlog_, [&](detail::stream* s, detail::resval r){
+                stream_->on_connection([&](detail::stream* s, detail::resval r){
                     if(!r)
                     {
                         emit<event::error>(Exception(r, "Failed to accept client socket (1)."));
@@ -746,6 +746,7 @@ namespace native
                     }
                 });
 
+                auto rv = stream_->listen(backlog_);
                 if(!rv)
                 {
                     stream_->close();

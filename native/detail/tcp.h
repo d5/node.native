@@ -108,60 +108,44 @@ namespace native
                 return resval();
             }
 
-            virtual resval listen(int backlog, std::function<void(stream*, resval)> callback)
-            {
-                callbacks::store(lut(), cid_uv_listen, callback);
-                bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&tcp_), backlog, [](uv_stream_t* handle, int status) {
-                    auto self = reinterpret_cast<tcp*>(handle->data);
-                    assert(self);
-
-                    if(status == 0)
-                    {
-                        auto client_obj = new tcp;
-                        assert(client_obj);
-
-                        int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->tcp_));
-                        assert(r == 0);
-
-                        callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_listen, client_obj, resval());
-                    }
-                    else
-                    {
-                        callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_listen, nullptr, get_last_error());
-                    }
-                }) == 0;
-
-                return res?resval():get_last_error();
-            }
-
-            // TODO: Node.js implementation takes 5 parameter in callback function.
-            virtual resval connect(const std::string& ip, int port, std::function<void(resval, bool, bool)> callback)
+            virtual resval connect(const std::string& ip, int port)
             {
                 struct sockaddr_in addr = to_ip4_addr(ip, port);
 
                 auto req = new uv_connect_t;
                 assert(req);
 
-                callbacks::store(lut(), cid_uv_connect, callback);
-
-                bool res = uv_tcp_connect(req, &tcp_, addr, on_connect) == 0;
-                if(!res) delete req;
-                return res?resval():get_last_error();
+                if(uv_tcp_connect(req, &tcp_, addr, [](uv_connect_t* req, int status){
+                    auto self = reinterpret_cast<tcp*>(req->handle->data);
+                    assert(self);
+                    if(self->on_complete_) self->on_complete_(status?get_last_error():resval());
+                    delete req;
+                }))
+                {
+                    delete req;
+                    return get_last_error();
+                }
+                return resval();
             }
 
-            // TODO: Node.js implementation takes 5 parameter in callback function.
-            virtual resval connect6(const std::string& ip, int port, std::function<void(resval, bool, bool)> callback)
+            virtual resval connect6(const std::string& ip, int port)
             {
                 struct sockaddr_in6 addr = to_ip6_addr(ip, port);
 
                 auto req = new uv_connect_t;
                 assert(req);
 
-                callbacks::store(lut(), cid_uv_connect6, callback);
-
-                bool res = uv_tcp_connect6(req, &tcp_, addr, on_connect) == 0;
-                if(!res) delete req;
-                return res?resval():get_last_error();
+                if(uv_tcp_connect6(req, &tcp_, addr, [](uv_connect_t* req, int status){
+                    auto self = reinterpret_cast<tcp*>(req->handle->data);
+                    assert(self);
+                    if(self->on_complete_) self->on_complete_(status?get_last_error():resval());
+                    delete req;
+                }))
+                {
+                    delete req;
+                    return get_last_error();
+                }
+                return resval();
             }
 
         protected:
@@ -174,18 +158,6 @@ namespace native
                 assert(r == 0);
 
                 return x;
-            }
-
-        private:
-            static void on_connect(uv_connect_t* req, int status)
-            {
-                auto self = reinterpret_cast<tcp*>(req->handle->data);
-                assert(self);
-
-                callbacks::invoke<std::function<void(resval, bool, bool)>>(self->lut(), cid_uv_connect,
-                    status?get_last_error():resval(), true, true);
-
-                delete req;
             }
 
         private:

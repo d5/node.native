@@ -14,6 +14,7 @@ namespace native
         {
             typedef std::function<void(const char*, std::size_t, std::size_t, stream*, resval)> on_read_callback_type;
             typedef std::function<void(resval)> on_complete_callback_type;
+            typedef std::function<void(stream*, resval)> on_connection_callback_type;
 
         protected:
             stream(uv_stream_t* stream)
@@ -21,6 +22,7 @@ namespace native
                 , stream_(stream)
                 , on_read_()
                 , on_complete_()
+                , on_connection_()
             {
                 assert(stream_);
             }
@@ -37,6 +39,11 @@ namespace native
             void on_complete(on_complete_callback_type callback)
             {
                 on_complete_ = callback;
+            }
+
+            void on_connection(on_connection_callback_type callback)
+            {
+                on_connection_ = callback;
             }
 
             virtual void set_handle(uv_handle_t* h)
@@ -133,7 +140,28 @@ namespace native
                 return res?resval():get_last_error();
             }
 
-            virtual resval listen(int backlog, std::function<void(stream*, resval)> callback) = 0;
+            virtual resval listen(int backlog)
+            {
+                if(uv_listen(uv_stream(), backlog, [](uv_stream_t* handle, int status) {
+                    auto self = reinterpret_cast<stream*>(handle->data);
+                    assert(self);
+
+                    if(status)
+                    {
+                        // error
+                        if(self->on_connection_) self->on_connection_(nullptr, get_last_error());
+                    }
+                    else
+                    {
+                        // accept new socket and invoke callback with it.
+                        if(self->on_connection_) self->on_connection_(self->accept_new_(), resval());
+                    }
+                })) return get_last_error();
+                return resval();
+            }
+
+            bool is_readable() const { return uv_is_readable(stream_) != 0; }
+            bool is_writable() const { return uv_is_writable(stream_) != 0; }
 
             uv_stream_t* uv_stream() { return stream_; }
             const uv_stream_t* uv_stream() const { return stream_; }
@@ -188,11 +216,13 @@ namespace native
                 if(buf.base) delete buf.base;
             }
 
-        private:
-            uv_stream_t* stream_;
-
+        protected:
+            on_connection_callback_type on_connection_;
             on_read_callback_type on_read_;
             on_complete_callback_type on_complete_;
+
+        private:
+            uv_stream_t* stream_;
         };
     }
 }
