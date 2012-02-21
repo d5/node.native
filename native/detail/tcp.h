@@ -100,6 +100,19 @@ namespace native
 
             virtual resval connect(const std::string& ip, int port)
             {
+                auto ver = get_ip_version(ip);
+                if(ver == 4) return connect4(ip, port);
+                else if(ver == 6) return connect6(ip, port);
+                else
+                {
+                    // TODO: uh-oh...
+                    assert(false);
+                    return resval();
+                }
+            }
+
+            virtual resval connect4(const std::string& ip, int port)
+            {
                 struct sockaddr_in addr = to_ip4_addr(ip, port);
 
                 auto req = new uv_connect_t;
@@ -138,7 +151,7 @@ namespace native
                 return resval();
             }
 
-        protected:
+        private:
             virtual stream* accept_new_()
             {
                 auto x = new tcp;

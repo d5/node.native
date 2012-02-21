@@ -12,6 +12,7 @@
 #include <list>
 #include <set>
 #include <tuple>
+#include <arpa/inet.h>
 #include <uv.h>
 #include <http_parser.h>
 
@@ -81,6 +82,18 @@ namespace native
             std::string ip;
             int port;
         };
+
+        int get_ip_version(const std::string& ip)
+        {
+            if(ip.empty()) return 0;
+
+            unsigned char buf[sizeof(in6_addr)];
+
+            if(inet_pton(AF_INET, ip.c_str(), buf) == 1) return 4;
+            else if(inet_pton(AF_INET6, ip.c_str(), buf) == 1) return 6;
+
+            return 0;
+        }
 
         resval get_last_error() { return resval(uv_last_error(uv_default_loop())); }
 

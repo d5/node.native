@@ -162,10 +162,9 @@ namespace native
             uv_stream_t* uv_stream() { return stream_; }
             const uv_stream_t* uv_stream() const { return stream_; }
 
-        protected:
+        private:
             virtual stream* accept_new_() { return nullptr; }
 
-        private:
             static uv_buf_t on_alloc(uv_handle_t* h, size_t suggested_size)
             {
                 auto self = reinterpret_cast<stream*>(h->data);

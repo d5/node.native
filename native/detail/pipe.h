@@ -48,7 +48,7 @@ namespace native
                 });
             }
 
-        protected:
+        private:
             virtual stream* accept_new_()
             {
                 auto x = new pipe;
