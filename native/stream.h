@@ -40,18 +40,19 @@ namespace native
         // TODO: implement Stream::setEncoding() function.
         virtual void setEncoding(const std::string& encoding) {}
 
-        virtual void pause() = 0;
-        virtual void resume() = 0;
-        virtual void destroy(Exception exception) = 0;
-        virtual void destroy() = 0;
-        virtual void destroySoon() = 0;
+        virtual void pause() {}
+        virtual void resume() {}
 
         virtual Stream* pipe(Stream* destination, const util::dict& options)
         {
             pipe_ = std::shared_ptr<pipe_context>(new pipe_context(this, destination, options));
             assert(pipe_);
-
             return destination;
+        }
+
+        virtual Stream* pipe(Stream* destination)
+        {
+            return pipe(destination, util::dict());
         }
 
         virtual bool write(const Buffer& buffer, std::function<void()> callback=nullptr) = 0;
@@ -60,6 +61,10 @@ namespace native
         virtual bool end(const Buffer& buffer) = 0;
         virtual bool end(const std::string& str, const std::string& encoding, int fd) = 0;
         virtual bool end() = 0;
+
+        virtual void destroy(Exception exception) = 0;
+        virtual void destroy() = 0;
+        virtual void destroySoon() = 0;
 
     protected:
         void writable(bool b) { writable_ = b; }
@@ -73,6 +78,7 @@ namespace native
                 , source_(source)
                 , destination_(destination)
                 , did_on_end_(false)
+                , pipe_count_(0)
             {
                 assert(source_ && destination_);
 
@@ -80,30 +86,27 @@ namespace native
                 source_on_data_ = source_->on<event::data>([&](const Buffer& chunk){
                     if(destination_->writable())
                     {
-                        if(!destination_->write(chunk))
-                        {
-                            // destination is full: pause source
-                            // TODO: some resources might not be supporting pause()
-                            source_->pause();
-                        }
+                        // if the destination is full: pause source
+                        if(!destination_->write(chunk)) source_->pause();
                     }
                 });
 
-                // when the destination gets writable again, resume reading
+                // when the destination becomes writable again, resume reading
                 dest_on_drain_ = destination_->on<event::drain>([&](){
-                    // TODO: some resources might not be supporting resume()
                     if(source_->readable()) source_->resume();
                 });
-
-                source_on_error_ = source_->on<event::error>([&](Exception exception){ on_error(exception); });
-                dest_on_error_ = destination_->on<event::error>([&](Exception exception){ on_error(exception); });
 
                 // assign "end", "close" event callback
                 if(!destination_->is_stdio_ && !options.compare("end", "false"))
                 {
+                    pipe_count_++;
+
                     source_on_end_ = source_->on<event::end>([&](){ on_end(); });
                     source_on_close_ = source_->on<event::close>([&](){ on_close(); });
                 }
+
+                source_on_error_ = source_->on<event::error>([&](const Exception& exception){ on_error(exception); });
+                dest_on_error_ = destination_->on<event::error>([&](const Exception& exception){ on_error(exception); });
 
                 source_on_end_clenaup_ = source_->on<event::end>([&](){ cleanup(); });
                 source_on_close_clenaup_ = source_->on<event::close>([&](){ cleanup(); });
@@ -124,9 +127,11 @@ namespace native
                 if(did_on_end_) return;
                 did_on_end_ = true;
 
+                pipe_count_--;
+
                 cleanup();
 
-                destination_->destroy();
+                if(pipe_count_ == 0) destination_->destroy();
             }
 
             void on_end()
@@ -134,9 +139,11 @@ namespace native
                 if(did_on_end_) return;
                 did_on_end_ = true;
 
+                pipe_count_--;
+
                 cleanup();
 
-                destination_->end();
+                if(pipe_count_ == 0) destination_->end();
             }
 
             void cleanup()
@@ -171,6 +178,7 @@ namespace native
             void* dest_on_end_clenaup_;
             void* dest_on_close_clenaup_;
 
+            std::size_t pipe_count_;
             bool did_on_end_;
         };
 

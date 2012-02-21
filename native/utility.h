@@ -140,10 +140,6 @@ namespace native
                 : map_(map)
             {}
 
-            dict(std::nullptr_t)
-                : map_()
-            {}
-
             virtual ~dict()
             {}
 
