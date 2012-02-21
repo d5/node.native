@@ -80,7 +80,7 @@ namespace native
             Socket(detail::stream* handle, Server* server, bool allowHalfOpen)
                 : Stream(handle, true, true)
                 , socket_type_(SocketType::None)
-                , stream_(handle)
+                , stream_(nullptr)
                 , server_(server)
                 , flags_(0)
                 , allow_half_open_(allowHalfOpen)
@@ -104,24 +104,8 @@ namespace native
                 registerEvent<event::error>();
                 registerEvent<event::close>();
 
-                if(stream_)
-                {
-                    // set on_read callback
-                    stream_->set_on_read_callback([&](const char* buffer, std::size_t offset, std::size_t length, detail::error e){
-                        on_read(buffer, offset, length, e);
-                    });
-
-                    // identify socket type
-                    if(stream_->uv_stream()->type == UV_TCP)
-                    {
-                        // TODO: cannot identify IPv6 socket type!
-                        socket_type_ = SocketType::IPv4;
-                    }
-                    else if(stream_->uv_stream()->type == UV_NAMED_PIPE)
-                    {
-                        socket_type_ = SocketType::Pipe;
-                    }
-                }
+                // init socket
+                init_socket(handle);
             }
 
             virtual ~Socket()
@@ -396,8 +380,61 @@ namespace native
                 return 0;
             }
 
+            // TODO: host name lookup (DNS) not supported
+            bool connect(const std::string& ip_or_path, int port=0, std::function<void()> callback=nullptr)
+            {
+                auto ip = isIP(ip_or_path);
+
+                // recreate socket handle if needed
+                if(destroyed_ || !stream_)
+                {
+                    if(ip == 0)
+                    {
+                        // create pipe socket
+                        init_socket(new detail::pipe);
+                    }
+                    else
+                    {
+                        // create TCP socket
+                        init_socket(new detail::tcp);
+                    }
+                }
+
+                timers::active(this);
+
+                connecting_ = true;
+                writable(true);
+
+                // TODO: need more implementation from here
+
+                return false;
+            }
+
         private:
-            virtual void destroy_(bool failed, Exception exception)
+            void init_socket(detail::stream* stream)
+            {
+                stream_ = stream;
+                if(stream_)
+                {
+                    // set on_read callback
+                    stream_->set_on_read_callback([&](const char* buffer, std::size_t offset, std::size_t length, detail::error e){
+                        on_read(buffer, offset, length, e);
+                    });
+
+                    // identify socket type
+                    if(stream_->uv_stream()->type == UV_TCP)
+                    {
+                        // TODO: cannot identify IPv6 socket type!
+                        socket_type_ = SocketType::IPv4;
+                    }
+                    else if(stream_->uv_stream()->type == UV_NAMED_PIPE)
+                    {
+                        socket_type_ = SocketType::Pipe;
+                    }
+                }
+            }
+
+            void destroy_(bool failed, Exception exception)
             {
                 if(destroyed_) return;
 
