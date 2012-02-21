@@ -830,6 +830,26 @@ const struct message requests[] =
   ,.body= "q=42"
   }
 
+#define PURGE_REQ 30
+, {.name = "PURGE request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "PURGE /file.txt HTTP/1.1\r\n"
+         "Host: www.example.com\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_PURGE
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/file.txt"
+  ,.request_url= "/file.txt"
+  ,.num_headers= 1
+  ,.headers= { { "Host", "www.example.com" } }
+  ,.body= ""
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -1948,6 +1968,90 @@ const struct url_test url_tests[] =
     }
   ,.rv=0
   }
+
+, {.name="proxy ipv6 request"
+  ,.url="http://[1:2::3:4]/"
+  ,.is_connect=0
+  ,.u=
+    {.field_set=(1 << UF_SCHEMA) | (1 << UF_HOST) | (1 << UF_PATH)
+    ,.port=0
+    ,.field_data=
+      {{  0,  4 } /* UF_SCHEMA */
+      ,{  8,  8 } /* UF_HOST */
+      ,{  0,  0 } /* UF_PORT */
+      ,{ 17,  1 } /* UF_PATH */
+      ,{  0,  0 } /* UF_QUERY */
+      ,{  0,  0 } /* UF_FRAGMENT */
+      }
+    }
+  ,.rv=0
+  }
+
+, {.name="CONNECT ipv6 address"
+  ,.url="[1:2::3:4]:443"
+  ,.is_connect=1
+  ,.u=
+    {.field_set=(1 << UF_HOST) | (1 << UF_PORT)
+    ,.port=443
+    ,.field_data=
+      {{  0,  0 } /* UF_SCHEMA */
+      ,{  1,  8 } /* UF_HOST */
+      ,{ 11,  3 } /* UF_PORT */
+      ,{  0,  0 } /* UF_PATH */
+      ,{  0,  0 } /* UF_QUERY */
+      ,{  0,  0 } /* UF_FRAGMENT */
+      }
+    }
+  ,.rv=0
+  }
+
+, {.name="extra ? in query string"
+  ,.url="http://a.tbcdn.cn/p/fp/2010c/??fp-header-min.css,fp-base-min.css,fp-channel-min.css,fp-product-min.css,fp-mall-min.css,fp-category-min.css,fp-sub-min.css,fp-gdp4p-min.css,fp-css3-min.css,fp-misc-min.css?t=20101022.css"
+  ,.is_connect=0
+  ,.u=
+    {.field_set=(1<<UF_SCHEMA) | (1<<UF_HOST) | (1<<UF_PATH) | (1<<UF_QUERY)
+    ,.port=0
+    ,.field_data=
+      {{  0,  4 } /* UF_SCHEMA */
+      ,{  7, 10 } /* UF_HOST */
+      ,{  0,  0 } /* UF_PORT */
+      ,{ 17, 12 } /* UF_PATH */
+      ,{ 30,187 } /* UF_QUERY */
+      ,{  0,  0 } /* UF_FRAGMENT */
+      }
+    }
+  ,.rv=0
+  }
+
+, {.name="proxy empty host"
+  ,.url="http://:443/"
+  ,.is_connect=0
+  ,.rv=1
+  }
+
+, {.name="proxy empty port"
+  ,.url="http://hostname:/"
+  ,.is_connect=0
+  ,.rv=1
+  }
+
+, {.name="CONNECT empty host"
+  ,.url=":443"
+  ,.is_connect=1
+  ,.rv=1
+  }
+
+, {.name="CONNECT empty port"
+  ,.url="hostname:"
+  ,.is_connect=1
+  ,.rv=1
+  }
+
+, {.name="CONNECT with extra bits"
+  ,.url="hostname:443/"
+  ,.is_connect=1
+  ,.rv=1
+  }
 };
 
 void
@@ -1993,8 +2097,8 @@ test_parse_url (void)
 
     if (test->rv == 0) {
       if (rv != 0) {
-        printf("\n*** http_parser_parse_url() \"%s\" test failed, "
-               "unexpected rv %d ***\n\n", test->name, rv);
+        printf("\n*** http_parser_parse_url(\"%s\") \"%s\" test failed, "
+               "unexpected rv %d ***\n\n", test->url, test->name, rv);
         exit(1);
       }
 
@@ -2012,8 +2116,8 @@ test_parse_url (void)
     } else {
       /* test->rv != 0 */
       if (rv == 0) {
-        printf("\n*** http_parser_parse_url() \"%s\" test failed, "
-               "unexpected rv %d ***\n\n", test->name, rv);
+        printf("\n*** http_parser_parse_url(\"%s\") \"%s\" test failed, "
+               "unexpected rv %d ***\n\n", test->url, test->name, rv);
         exit(1);
       }
     }
