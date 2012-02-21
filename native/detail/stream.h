@@ -65,28 +65,25 @@ namespace native
 
                 if(ipc_pipe)
                 {
-                    bool res = uv_read2_start(stream_, on_alloc, [](uv_pipe_t* handle, ssize_t nread, uv_buf_t buf, uv_handle_type pending) {
+                    return run_(uv_read2_start, stream_, on_alloc, [](uv_pipe_t* handle, ssize_t nread, uv_buf_t buf, uv_handle_type pending) {
                        auto self = reinterpret_cast<stream*>(handle->data);
                        assert(self);
                        self->after_read_(reinterpret_cast<uv_stream_t*>(handle), nread, buf, pending);
-                   }) == 0;
+                    });
                 }
                 else
                 {
-                    res = uv_read_start(stream_, on_alloc, [](uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+                    return run_(uv_read_start, stream_, on_alloc, [](uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
                         auto self = reinterpret_cast<stream*>(handle->data);
                         assert(self);
                         self->after_read_(handle, nread, buf, UV_UNKNOWN_HANDLE);
-                    }) == 0;
+                    });
                 }
-
-                return res?resval():get_last_error();
             }
 
             virtual resval read_stop()
             {
-                if(uv_read_stop(stream_)) return get_last_error();
-                return resval();
+                return run_(uv_read_stop, stream_);
             }
 
             virtual resval write(const char* data, int offset, int length, stream* send_stream=nullptr)
@@ -142,7 +139,7 @@ namespace native
 
             virtual resval listen(int backlog)
             {
-                if(uv_listen(uv_stream(), backlog, [](uv_stream_t* handle, int status) {
+                return run_(uv_listen, uv_stream(), backlog, [](uv_stream_t* handle, int status) {
                     auto self = reinterpret_cast<stream*>(handle->data);
                     assert(self);
 
@@ -156,8 +153,7 @@ namespace native
                         // accept new socket and invoke callback with it.
                         if(self->on_connection_) self->on_connection_(self->accept_new_(), resval());
                     }
-                })) return get_last_error();
-                return resval();
+                });
             }
 
             bool is_readable() const { return uv_is_readable(stream_) != 0; }

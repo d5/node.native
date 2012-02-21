@@ -84,6 +84,15 @@ namespace native
 
         resval get_last_error() { return resval(uv_last_error(uv_default_loop())); }
 
+        template<typename F, typename ...A>
+        resval run_(F fn, A&&... args)
+        {
+            static_assert(std::is_pointer<F>::value, "Template parameter F is not a plain-function.");
+            static_assert(std::is_same<decltype(fn(args...)), int>::value, "Return value of template parameter F is not int.");
+
+            return fn(std::forward<A>(args)...) ? get_last_error() : resval();
+        }
+
         sockaddr_in to_ip4_addr(const std::string& ip, int port) { return uv_ip4_addr(ip.c_str(), port); }
         sockaddr_in6 to_ip6_addr(const std::string& ip, int port) { return uv_ip6_addr(ip.c_str(), port); }
 

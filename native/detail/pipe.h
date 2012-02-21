@@ -27,8 +27,7 @@ namespace native
         public:
             virtual resval bind(const std::string& name)
             {
-                if(uv_pipe_bind(&pipe_, name.c_str())) return get_last_error();
-                return resval();
+                return run_(uv_pipe_bind, &pipe_, name.c_str());
             }
 
             virtual void open(int fd)

@@ -34,9 +34,8 @@ namespace native
             {
                 struct sockaddr_storage addr;
                 int addrlen = static_cast<int>(sizeof(addr));
-                bool res = uv_tcp_getsockname(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0;
 
-                if(res)
+                if(uv_tcp_getsockname(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0)
                 {
                     assert(addr.ss_family == AF_INET || addr.ss_family == AF_INET6);
 
@@ -59,9 +58,8 @@ namespace native
             {
                 struct sockaddr_storage addr;
                 int addrlen = static_cast<int>(sizeof(addr));
-                bool res = uv_tcp_getsockname(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0;
 
-                if(res)
+                if(uv_tcp_getsockname(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0)
                 {
                     assert(addr.ss_family == AF_INET || addr.ss_family == AF_INET6);
 
@@ -82,30 +80,22 @@ namespace native
 
             virtual resval set_no_delay(bool enable)
             {
-                if(uv_tcp_nodelay(&tcp_, enable?1:0)) return get_last_error();
-                return resval();
+                return run_(uv_tcp_nodelay, &tcp_, enable?1:0);
             }
 
             virtual resval set_keepalive(bool enable, unsigned int delay)
             {
-                if(uv_tcp_keepalive(&tcp_, enable?1:0, delay)) return get_last_error();
-                return resval();
+                return run_(uv_tcp_keepalive, &tcp_, enable?1:0, delay);
             }
 
             virtual resval bind(const std::string& ip, int port)
             {
-                struct sockaddr_in addr = to_ip4_addr(ip, port);
-
-                if(uv_tcp_bind(&tcp_, addr)) return get_last_error();
-                return resval();
+                return run_(uv_tcp_bind, &tcp_, to_ip4_addr(ip, port));
             }
 
             virtual resval bind6(const std::string& ip, int port)
             {
-                struct sockaddr_in6 addr = to_ip6_addr(ip, port);
-
-                if(uv_tcp_bind6(&tcp_, addr)) return get_last_error();
-                return resval();
+                return run_(uv_tcp_bind6, &tcp_, to_ip6_addr(ip, port));
             }
 
             virtual resval connect(const std::string& ip, int port)
