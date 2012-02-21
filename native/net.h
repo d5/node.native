@@ -10,6 +10,9 @@
 
 namespace native
 {
+    /**
+     *  Network classes and functions are defined under native::net namespace.
+     */
     namespace net
     {
         /**
@@ -46,19 +49,39 @@ namespace native
          */
         bool isIPv6(const std::string& input) { return isIP(input) == 6; }
 
+        /**
+         *  Represents the type of socket stream.
+         */
         struct SocketType
         {
             enum
             {
+                /**
+                 *  IPv4 socket.
+                 */
                 IPv4,
+                /**
+                 *  IPv6 socket.
+                 */
                 IPv6,
+                /**
+                 *  Unix pipe socket.
+                 */
                 Pipe,
+                /**
+                 *  Invalid type of socket.
+                 */
                 None
             };
         };
 
         class Server;
 
+        /**
+         *  @brief Socket class.
+         *
+         *  Socket class represents network socket streams.
+         */
         class Socket : public Stream
         {
             friend class Server;
@@ -70,6 +93,14 @@ namespace native
             static const int FLAG_SHUTDOWNQUED = 1 << 3;
 
         protected:
+            /**
+             *  @brief Socket constructor.
+             *
+             *  @param handle           Pointer to native::detail::stream object.
+             *  @param server           Pointer to native::net::Server object.
+             *  @param allowHalfOpen    If true, ...
+             *
+             */
             Socket(detail::stream* handle=nullptr, Server* server=nullptr, bool allowHalfOpen=false)
                 : Stream(handle, true, true)
                 , socket_type_(SocketType::None)
@@ -101,11 +132,22 @@ namespace native
                 init_socket(handle);
             }
 
+            /**
+             *  @brief Socket destructor.
+             */
             virtual ~Socket()
             {
             }
 
         public:
+            /**
+             *  @brief Sends the last data and close the socket stream.
+             *
+             *  @param buffer       Sending data.
+             *
+             *  @retval true        The data was sent and the socket was closed successfully.
+             *  @retval false       There was an error while closing the socket stream.
+             */
             virtual bool end(const Buffer& buffer)
             {
                 if(connecting_ && ((flags_ & FLAG_SHUTDOWNQUED) == 0))
@@ -150,11 +192,28 @@ namespace native
                 return true;
             }
 
+            /**
+             *  @brief Sends the last data and close the socket stream.
+             *
+             *  @param str          Sending string.
+             *  @param encoding     Encoding name of the string.
+             *  @param fd           Not implemented.
+             *
+             *  @retval true        The data was sent and the socket was closed successfully.
+             *  @retval false       There was an error while closing the socket stream.
+             */
             virtual bool end(const std::string& str, const std::string& encoding=std::string(), int fd=-1)
             {
                 // TODO: what about 'fd'?
                 return end(Buffer(str, encoding));
             }
+
+            /**
+             *  @brief Close the socket stream.
+             *
+             *  @retval true        The socket was closed successfully.
+             *  @retval false       There was an error while closing the socket stream.
+             */
             virtual bool end()
             {
                 return end(Buffer(nullptr));
@@ -166,6 +225,15 @@ namespace native
 
             // TODO: this is not inherited from Stream - a new overload.
             // callback is invoked after all data is written.
+            /**
+             *  @brief Writes data to the stream.
+             *
+             *  @param buffer       The data buffer.
+             *  @param callback     Callback object that will be invoked after all the data is written.
+             *
+             *  @retval true        The request was successfully initiated.
+             *  @retval false       The data was queued or the request was failed.
+             */
             virtual bool write(const Buffer& buffer, std::function<void()> callback=nullptr)
             {
                 bytes_written_ += buffer.size();
@@ -214,16 +282,33 @@ namespace native
                 return stream_->write_queue_size() == 0;
             }
 
+            /**
+             *  @brief Destorys the socket stream.
+             *
+             *  You should call this function only when there was an error.
+             *
+             *  @param exception        Exception object.
+             */
             virtual void destroy(Exception exception)
             {
                 destroy_(true, exception);
             }
 
+            /**
+             *  @brief Destorys the socket stream.
+             *
+             *  You should call this function only when there was an error.
+             */
             virtual void destroy()
             {
                 destroy_(false, Exception());
             }
 
+            /**
+             *  @brief Destorys the socket stream after the write queue is drained.
+             *
+             *  You should call this function only when there was an error.
+             */
             virtual void destroySoon()
             {
                 writable(false);
@@ -235,6 +320,9 @@ namespace native
                 }
             }
 
+            /**
+             *  @brief Pauses reading from the socket stream.
+             */
             virtual void pause()
             {
                 if(stream_)
@@ -244,6 +332,9 @@ namespace native
                 }
             }
 
+            /**
+             *  @brief Resumes reading from the socket stream.
+             */
             virtual void resume()
             {
                 if(stream_)
@@ -253,6 +344,12 @@ namespace native
                 }
             }
 
+            /**
+             *  @brief Sets time-out callbacks.
+             *
+             *  @param msecs        Amount of time for the callback in milliseconds.
+             *  @param callback     If the socket stream is not active for the specified time amount, this callback object will be invoked.
+             */
             void setTimeout(unsigned int msecs, std::function<void()> callback=nullptr)
             {
                 if(msecs > 0)
@@ -463,6 +560,20 @@ namespace native
                     return false;
                 }
             }
+
+            /**
+             *  @brief Returns the number of bytes written to the socket stream.
+             *
+             *  @return     The number of bytes written.
+             */
+            std::size_t bytesWritten() const { return bytes_written_; }
+
+            /**
+             *  @brief Returns the number of bytes read from the socket stream.
+             *
+             *  @return     The number of bytes read.
+             */
+            std::size_t bytesRead() const { return bytes_read_; }
 
         private:
             void init_socket(detail::stream* stream)

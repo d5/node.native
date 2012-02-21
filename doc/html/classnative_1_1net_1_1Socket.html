@@ -60,13 +60,14 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   <div id="nav-path" class="navpath">
     <ul>
       <li class="navelem"><a class="el" href="namespacenative.html">native</a>      </li>
-      <li class="navelem"><b>net</b>      </li>
+      <li class="navelem"><a class="el" href="namespacenative_1_1net.html">net</a>      </li>
       <li class="navelem"><a class="el" href="classnative_1_1net_1_1Socket.html">Socket</a>      </li>
     </ul>
   </div>
 </div>
 <div class="header">
   <div class="summary">
+<a href="#nested-classes">Classes</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pro-methods">Protected Member Functions</a> &#124;
 <a href="#friends">Friends</a>  </div>
@@ -74,7 +75,10 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="title">native::net::Socket Class Reference</div>  </div>
 </div>
 <div class="contents">
-<!-- doxytag: class="native::net::Socket" --><!-- doxytag: inherits="native::Stream" --><div class="dynheader">
+<!-- doxytag: class="native::net::Socket" --><!-- doxytag: inherits="native::Stream" -->
+<p><a class="el" href="classnative_1_1net_1_1Socket.html" title="Socket class.">Socket</a> class.  
+ <a href="classnative_1_1net_1_1Socket.html#details">More...</a></p>
+<div class="dynheader">
 Inheritance diagram for native::net::Socket:</div>
 <div class="dyncontent">
  <div class="center">
@@ -87,37 +91,419 @@ Inheritance diagram for native::net::Socket:</div>
 
 <p><a href="classnative_1_1net_1_1Socket-members.html">List of all members.</a></p>
 <table class="memberdecls">
+<tr><td colspan="2"><h2><a name="nested-classes"></a>
+Classes</h2></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><b>internal_destroy_event</b></td></tr>
 <tr><td colspan="2"><h2><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6d4c3d2c84b43cd88736417a5ae4b7d4"></a><!-- doxytag: member="native::net::Socket::end" ref="a6d4c3d2c84b43cd88736417a5ae4b7d4" args="(const Buffer &amp;buffer)" -->
-virtual bool&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> (const <a class="el" href="classnative_1_1Buffer.html">Buffer</a> &amp;buffer)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a3cd5028b6fbe36d80b22e4048aba9de2"></a><!-- doxytag: member="native::net::Socket::end" ref="a3cd5028b6fbe36d80b22e4048aba9de2" args="(const std::string &amp;str, const std::string &amp;encoding=std::string(), int fd=&#45;1)" -->
-virtual bool&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> (const std::string &amp;str, const std::string &amp;encoding=std::string(), int fd=-1)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aed4a45082e455f3773414e25ad88ee44"></a><!-- doxytag: member="native::net::Socket::end" ref="aed4a45082e455f3773414e25ad88ee44" args="()" -->
-virtual bool&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> ()</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a6d4c3d2c84b43cd88736417a5ae4b7d4">end</a> (const <a class="el" href="classnative_1_1Buffer.html">Buffer</a> &amp;buffer)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Sends the last data and close the socket stream.  <a href="#a6d4c3d2c84b43cd88736417a5ae4b7d4"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a3cd5028b6fbe36d80b22e4048aba9de2">end</a> (const std::string &amp;str, const std::string &amp;encoding=std::string(), int fd=-1)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Sends the last data and close the socket stream.  <a href="#a3cd5028b6fbe36d80b22e4048aba9de2"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#aed4a45082e455f3773414e25ad88ee44">end</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Close the socket stream.  <a href="#aed4a45082e455f3773414e25ad88ee44"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a1f89703921b1cc067988aad39429f9a7"></a><!-- doxytag: member="native::net::Socket::write" ref="a1f89703921b1cc067988aad39429f9a7" args="(const std::string &amp;str, const std::string &amp;encoding, int fd)" -->
 virtual bool&#160;</td><td class="memItemRight" valign="bottom"><b>write</b> (const std::string &amp;str, const std::string &amp;encoding, int fd)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a1a5b2f350030ebba194f8ce1018688b8"></a><!-- doxytag: member="native::net::Socket::write" ref="a1a5b2f350030ebba194f8ce1018688b8" args="(const Buffer &amp;buffer, std::function&lt; void()&gt; callback=nullptr)" -->
-virtual bool&#160;</td><td class="memItemRight" valign="bottom"><b>write</b> (const <a class="el" href="classnative_1_1Buffer.html">Buffer</a> &amp;buffer, std::function&lt; void()&gt; callback=nullptr)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a5aef091557974a292d0be5bad745efae"></a><!-- doxytag: member="native::net::Socket::destroy" ref="a5aef091557974a292d0be5bad745efae" args="(Exception exception)" -->
-virtual void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> (<a class="el" href="classnative_1_1Exception.html">Exception</a> exception)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="abe221daee6c27010112a5270fda28277"></a><!-- doxytag: member="native::net::Socket::destroy" ref="abe221daee6c27010112a5270fda28277" args="()" -->
-virtual void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> ()</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">virtual bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a1a5b2f350030ebba194f8ce1018688b8">write</a> (const <a class="el" href="classnative_1_1Buffer.html">Buffer</a> &amp;buffer, std::function&lt; void()&gt; callback=nullptr)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes data to the stream.  <a href="#a1a5b2f350030ebba194f8ce1018688b8"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a5aef091557974a292d0be5bad745efae">destroy</a> (<a class="el" href="classnative_1_1Exception.html">Exception</a> exception)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Destorys the socket stream.  <a href="#a5aef091557974a292d0be5bad745efae"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#abe221daee6c27010112a5270fda28277">destroy</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Destorys the socket stream.  <a href="#abe221daee6c27010112a5270fda28277"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a0dfb514923e66c199591da99faa388a0">destroySoon</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Destorys the socket stream after the write queue is drained.  <a href="#a0dfb514923e66c199591da99faa388a0"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ace30f15f2a94e671e68b7db58a554d07"></a><!-- doxytag: member="native::net::Socket::pause" ref="ace30f15f2a94e671e68b7db58a554d07" args="()" -->
-virtual void&#160;</td><td class="memItemRight" valign="bottom"><b>pause</b> ()</td></tr>
+virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#ace30f15f2a94e671e68b7db58a554d07">pause</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Pauses reading from the socket stream. <br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="adbcbb307feaa394f452eaedd42d91c73"></a><!-- doxytag: member="native::net::Socket::resume" ref="adbcbb307feaa394f452eaedd42d91c73" args="()" -->
-virtual void&#160;</td><td class="memItemRight" valign="bottom"><b>resume</b> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a0dfb514923e66c199591da99faa388a0"></a><!-- doxytag: member="native::net::Socket::destroySoon" ref="a0dfb514923e66c199591da99faa388a0" args="()" -->
-virtual void&#160;</td><td class="memItemRight" valign="bottom"><b>destroySoon</b> ()</td></tr>
+virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#adbcbb307feaa394f452eaedd42d91c73">resume</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Resumes reading from the socket stream. <br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a1d59941dd1aa0389f0f3a6d27943ecb1">setTimeout</a> (unsigned int msecs, std::function&lt; void()&gt; callback=nullptr)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets time-out callbacks.  <a href="#a1d59941dd1aa0389f0f3a6d27943ecb1"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a49a1a94eea70f594a4ef6db38d88768b"></a><!-- doxytag: member="native::net::Socket::setNoDelay" ref="a49a1a94eea70f594a4ef6db38d88768b" args="()" -->
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>setNoDelay</b> ()</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a573bfd86d2c532f47260876037432c1c"></a><!-- doxytag: member="native::net::Socket::setKeepAlive" ref="a573bfd86d2c532f47260876037432c1c" args="(bool enable, unsigned int initialDelay=0)" -->
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>setKeepAlive</b> (bool enable, unsigned int initialDelay=0)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a45bc8679d4527185e61ad87d4307ff7b"></a><!-- doxytag: member="native::net::Socket::address" ref="a45bc8679d4527185e61ad87d4307ff7b" args="(std::string &amp;ip_or_pipe_name, int &amp;port)" -->
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>address</b> (std::string &amp;ip_or_pipe_name, int &amp;port)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a84b00eb4faf5b52685424467bf2399fc"></a><!-- doxytag: member="native::net::Socket::readyState" ref="a84b00eb4faf5b52685424467bf2399fc" args="() const " -->
+std::string&#160;</td><td class="memItemRight" valign="bottom"><b>readyState</b> () const </td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a505b66999ddf737f07672985f9260418"></a><!-- doxytag: member="native::net::Socket::bufferSize" ref="a505b66999ddf737f07672985f9260418" args="() const " -->
+std::size_t&#160;</td><td class="memItemRight" valign="bottom"><b>bufferSize</b> () const </td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aa31092c5c30ff74e08961e4b9803b66a"></a><!-- doxytag: member="native::net::Socket::remoteAddress" ref="aa31092c5c30ff74e08961e4b9803b66a" args="() const " -->
+std::string&#160;</td><td class="memItemRight" valign="bottom"><b>remoteAddress</b> () const </td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6efc3c0ccd6767562ff15b95c714f20a"></a><!-- doxytag: member="native::net::Socket::remotePort" ref="a6efc3c0ccd6767562ff15b95c714f20a" args="() const " -->
+int&#160;</td><td class="memItemRight" valign="bottom"><b>remotePort</b> () const </td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a76de27e070967e8f666dc754501bc3b2"></a><!-- doxytag: member="native::net::Socket::connect" ref="a76de27e070967e8f666dc754501bc3b2" args="(const std::string &amp;ip_or_path, int port=0, event::connect::callback_type callback=nullptr)" -->
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>connect</b> (const std::string &amp;ip_or_path, int port=0, event::connect::callback_type callback=nullptr)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a588800d2185ce725ba9d6522c80aec22">bytesWritten</a> () const </td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of bytes written to the socket stream.  <a href="#a588800d2185ce725ba9d6522c80aec22"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#af7ab635cd7a8d15d7a0af23e4224f079">bytesRead</a> () const </td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of bytes read from the socket stream.  <a href="#af7ab635cd7a8d15d7a0af23e4224f079"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad9b2dce950788e84e4068efb9d10bc0b"></a><!-- doxytag: member="native::net::Socket::Socket" ref="ad9b2dce950788e84e4068efb9d10bc0b" args="(detail::stream *handle, Server *server, bool allowHalfOpen)" -->
-&#160;</td><td class="memItemRight" valign="bottom"><b>Socket</b> (detail::stream *handle, <a class="el" href="classnative_1_1net_1_1Server.html">Server</a> *server, bool allowHalfOpen)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#a45523b259c18df4f8093b0a72b31fb39">Socket</a> (detail::stream *handle=nullptr, <a class="el" href="classnative_1_1net_1_1Server.html">Server</a> *server=nullptr, bool allowHalfOpen=false)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classnative_1_1net_1_1Socket.html" title="Socket class.">Socket</a> constructor.  <a href="#a45523b259c18df4f8093b0a72b31fb39"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad6230abff5f00febff1f2173d2b41893"></a><!-- doxytag: member="native::net::Socket::~Socket" ref="ad6230abff5f00febff1f2173d2b41893" args="()" -->
+virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classnative_1_1net_1_1Socket.html#ad6230abff5f00febff1f2173d2b41893">~Socket</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classnative_1_1net_1_1Socket.html" title="Socket class.">Socket</a> destructor. <br/></td></tr>
 <tr><td colspan="2"><h2><a name="friends"></a>
 Friends</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ac2055578ac48afabe5af487878450f68"></a><!-- doxytag: member="native::net::Socket::Server" ref="ac2055578ac48afabe5af487878450f68" args="" -->
 class&#160;</td><td class="memItemRight" valign="bottom"><b>Server</b></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a85c2c5357ef7ba631c6066be97caadf6"></a><!-- doxytag: member="native::net::Socket::createSocket" ref="a85c2c5357ef7ba631c6066be97caadf6" args="(std::function&lt; void(Socket *)&gt;, bool)" -->
+<a class="el" href="classnative_1_1net_1_1Socket.html">Socket</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>createSocket</b> (std::function&lt; void(<a class="el" href="classnative_1_1net_1_1Socket.html">Socket</a> *)&gt;, bool)</td></tr>
 </table>
+<hr/><a name="details" id="details"></a><h2>Detailed Description</h2>
+<div class="textblock"><p><a class="el" href="classnative_1_1net_1_1Socket.html" title="Socket class.">Socket</a> class. </p>
+<p><a class="el" href="classnative_1_1net_1_1Socket.html" title="Socket class.">Socket</a> class represents network socket streams. </p>
+</div><hr/><h2>Constructor &amp; Destructor Documentation</h2>
+<a class="anchor" id="a45523b259c18df4f8093b0a72b31fb39"></a><!-- doxytag: member="native::net::Socket::Socket" ref="a45523b259c18df4f8093b0a72b31fb39" args="(detail::stream *handle=nullptr, Server *server=nullptr, bool allowHalfOpen=false)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">native::net::Socket::Socket </td>
+          <td>(</td>
+          <td class="paramtype">detail::stream *&#160;</td>
+          <td class="paramname"><em>handle</em> = <code>nullptr</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classnative_1_1net_1_1Server.html">Server</a> *&#160;</td>
+          <td class="paramname"><em>server</em> = <code>nullptr</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>allowHalfOpen</em> = <code>false</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [protected]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p><a class="el" href="classnative_1_1net_1_1Socket.html" title="Socket class.">Socket</a> constructor. </p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">handle</td><td>Pointer to native::detail::stream object. </td></tr>
+    <tr><td class="paramname">server</td><td>Pointer to <a class="el" href="classnative_1_1net_1_1Server.html">native::net::Server</a> object. </td></tr>
+    <tr><td class="paramname">allowHalfOpen</td><td>If true, ... </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<hr/><h2>Member Function Documentation</h2>
+<a class="anchor" id="af7ab635cd7a8d15d7a0af23e4224f079"></a><!-- doxytag: member="native::net::Socket::bytesRead" ref="af7ab635cd7a8d15d7a0af23e4224f079" args="() const " -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::size_t native::net::Socket::bytesRead </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Returns the number of bytes read from the socket stream. </p>
+<dl class="return"><dt><b>Returns:</b></dt><dd>The number of bytes read. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a588800d2185ce725ba9d6522c80aec22"></a><!-- doxytag: member="native::net::Socket::bytesWritten" ref="a588800d2185ce725ba9d6522c80aec22" args="() const " -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::size_t native::net::Socket::bytesWritten </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Returns the number of bytes written to the socket stream. </p>
+<dl class="return"><dt><b>Returns:</b></dt><dd>The number of bytes written. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a5aef091557974a292d0be5bad745efae"></a><!-- doxytag: member="native::net::Socket::destroy" ref="a5aef091557974a292d0be5bad745efae" args="(Exception exception)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void native::net::Socket::destroy </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classnative_1_1Exception.html">Exception</a>&#160;</td>
+          <td class="paramname"><em>exception</em></td><td>)</td>
+          <td><code> [virtual]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Destorys the socket stream. </p>
+<p>You should call this function only when there was an error.</p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">exception</td><td><a class="el" href="classnative_1_1Exception.html">Exception</a> object. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+<p>Implements <a class="el" href="classnative_1_1Stream.html">native::Stream</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="abe221daee6c27010112a5270fda28277"></a><!-- doxytag: member="native::net::Socket::destroy" ref="abe221daee6c27010112a5270fda28277" args="()" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void native::net::Socket::destroy </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td><code> [virtual]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Destorys the socket stream. </p>
+<p>You should call this function only when there was an error. </p>
+
+<p>Implements <a class="el" href="classnative_1_1Stream.html">native::Stream</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="a0dfb514923e66c199591da99faa388a0"></a><!-- doxytag: member="native::net::Socket::destroySoon" ref="a0dfb514923e66c199591da99faa388a0" args="()" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void native::net::Socket::destroySoon </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td><code> [virtual]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Destorys the socket stream after the write queue is drained. </p>
+<p>You should call this function only when there was an error. </p>
+
+<p>Implements <a class="el" href="classnative_1_1Stream.html">native::Stream</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="a3cd5028b6fbe36d80b22e4048aba9de2"></a><!-- doxytag: member="native::net::Socket::end" ref="a3cd5028b6fbe36d80b22e4048aba9de2" args="(const std::string &amp;str, const std::string &amp;encoding=std::string(), int fd=&#45;1)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual bool native::net::Socket::end </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>str</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>encoding</em> = <code>std::string()</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>fd</em> = <code>-1</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [virtual]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Sends the last data and close the socket stream. </p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">str</td><td>Sending string. </td></tr>
+    <tr><td class="paramname">encoding</td><td>Encoding name of the string. </td></tr>
+    <tr><td class="paramname">fd</td><td>Not implemented.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl><dt><b>Return values:</b></dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">true</td><td>The data was sent and the socket was closed successfully. </td></tr>
+    <tr><td class="paramname">false</td><td>There was an error while closing the socket stream. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+<p>Implements <a class="el" href="classnative_1_1Stream.html">native::Stream</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="aed4a45082e455f3773414e25ad88ee44"></a><!-- doxytag: member="native::net::Socket::end" ref="aed4a45082e455f3773414e25ad88ee44" args="()" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual bool native::net::Socket::end </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td><code> [virtual]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Close the socket stream. </p>
+<dl><dt><b>Return values:</b></dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">true</td><td>The socket was closed successfully. </td></tr>
+    <tr><td class="paramname">false</td><td>There was an error while closing the socket stream. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+<p>Implements <a class="el" href="classnative_1_1Stream.html">native::Stream</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="a6d4c3d2c84b43cd88736417a5ae4b7d4"></a><!-- doxytag: member="native::net::Socket::end" ref="a6d4c3d2c84b43cd88736417a5ae4b7d4" args="(const Buffer &amp;buffer)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual bool native::net::Socket::end </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classnative_1_1Buffer.html">Buffer</a> &amp;&#160;</td>
+          <td class="paramname"><em>buffer</em></td><td>)</td>
+          <td><code> [virtual]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Sends the last data and close the socket stream. </p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">buffer</td><td>Sending data.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl><dt><b>Return values:</b></dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">true</td><td>The data was sent and the socket was closed successfully. </td></tr>
+    <tr><td class="paramname">false</td><td>There was an error while closing the socket stream. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+<p>Implements <a class="el" href="classnative_1_1Stream.html">native::Stream</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="a1d59941dd1aa0389f0f3a6d27943ecb1"></a><!-- doxytag: member="native::net::Socket::setTimeout" ref="a1d59941dd1aa0389f0f3a6d27943ecb1" args="(unsigned int msecs, std::function&lt; void()&gt; callback=nullptr)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void native::net::Socket::setTimeout </td>
+          <td>(</td>
+          <td class="paramtype">unsigned int&#160;</td>
+          <td class="paramname"><em>msecs</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::function&lt; void()&gt;&#160;</td>
+          <td class="paramname"><em>callback</em> = <code>nullptr</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Sets time-out callbacks. </p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">msecs</td><td>Amount of time for the callback in milliseconds. </td></tr>
+    <tr><td class="paramname">callback</td><td>If the socket stream is not active for the specified time amount, this callback object will be invoked. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a1a5b2f350030ebba194f8ce1018688b8"></a><!-- doxytag: member="native::net::Socket::write" ref="a1a5b2f350030ebba194f8ce1018688b8" args="(const Buffer &amp;buffer, std::function&lt; void()&gt; callback=nullptr)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual bool native::net::Socket::write </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classnative_1_1Buffer.html">Buffer</a> &amp;&#160;</td>
+          <td class="paramname"><em>buffer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::function&lt; void()&gt;&#160;</td>
+          <td class="paramname"><em>callback</em> = <code>nullptr</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [virtual]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Writes data to the stream. </p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">buffer</td><td>The data buffer. </td></tr>
+    <tr><td class="paramname">callback</td><td>Callback object that will be invoked after all the data is written.</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl><dt><b>Return values:</b></dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">true</td><td>The request was successfully initiated. </td></tr>
+    <tr><td class="paramname">false</td><td>The data was queued or the request was failed. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+<p>Implements <a class="el" href="classnative_1_1Stream.html">native::Stream</a>.</p>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li><a class="el" href="net_8h_source.html">net.h</a></li>
 </ul>
@@ -127,7 +513,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>Server</b></td></tr>
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Typedefs</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Enumerator</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -136,7 +522,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>Server</b></td></tr>
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Tue Feb 21 2012 05:22:55 for node.native by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Wed Feb 22 2012 05:12:13 for node.native by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>
