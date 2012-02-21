@@ -13,12 +13,12 @@ namespace native
             : message_(message)
         {}
 
-        Exception(detail::error e)
-            : message_(e.str())
+        Exception(detail::resval rv)
+            : message_(rv.str())
         {}
 
-        Exception(detail::error e, const std::string& message)
-            : message_(message + "\n" + e.str())
+        Exception(detail::resval rv, const std::string& message)
+            : message_(message + "\n" + rv.str())
         {}
 
         Exception(std::nullptr_t)

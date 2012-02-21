@@ -25,17 +25,16 @@ namespace native
             {}
 
         public:
-            virtual error bind(const std::string& name)
+            virtual resval bind(const std::string& name)
             {
-                bool res = uv_pipe_bind(&pipe_, name.c_str());
-
-                return res?error():get_last_error();
+                if(uv_pipe_bind(&pipe_, name.c_str())) return get_last_error();
+                return resval();
             }
 
-            virtual error listen(int backlog, std::function<void(stream*, error)> callback)
+            virtual resval listen(int backlog, std::function<void(stream*, resval)> callback)
             {
                 callbacks::store(lut(), cid_uv_listen, callback);
-                bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&pipe_), backlog, [](uv_stream_t* handle, int status) {
+                if(uv_listen(reinterpret_cast<uv_stream_t*>(&pipe_), backlog, [](uv_stream_t* handle, int status) {
                     auto self = reinterpret_cast<pipe*>(handle->data);
                     assert(self);
 
@@ -48,10 +47,10 @@ namespace native
                     int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->pipe_));
                     assert(r == 0);
 
-                    callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_listen, client_obj, error());
-                }) == 0;
+                    callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_listen, client_obj, resval());
+                })) { return get_last_error(); }
 
-                return res?error():get_last_error();
+                return resval();
             }
 
             virtual void open(int fd)
@@ -60,7 +59,7 @@ namespace native
             }
 
             // TODO: Node.js implementation takes 5 parameter in callback function.
-            virtual void connect(const std::string& name, std::function<void(error, bool, bool)> callback)
+            virtual void connect(const std::string& name, std::function<void(resval, bool, bool)> callback)
             {
                 auto req = new uv_connect_t;
                 assert(req);
@@ -80,7 +79,7 @@ namespace native
                         writable = uv_is_writable(req->handle) != 0;
                     }
 
-                    callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_connect, status?get_last_error():error(), readable, writable);
+                    callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_connect, status?get_last_error():resval(), readable, writable);
 
                     delete req;
                 });

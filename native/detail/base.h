@@ -55,15 +55,18 @@ namespace native
             else return et_none;
         }
 
-        class error
+        class resval
         {
         public:
-            error() : err_() {} // default: no error
-            error(uv_err_t e) : err_(e) {}
-            error(uv_err_code code) : err_ {code, 0} {}
-            ~error() {}
+            resval() : err_() {} // default: no error
+            explicit resval(uv_err_t e) : err_(e) {}
+            explicit resval(uv_err_code code) : err_ {code, 0} {}
+            explicit resval(std::nullptr_t) : err_() {}
+            resval(const resval& c) : err_(c.err_) {}
+            resval(resval&& c) : err_(std::move(c.err_)) {}
+            ~resval() {}
 
-            operator bool() { return err_.code != UV_OK; }
+            operator bool() { return err_.code == UV_OK; }
 
             uv_err_code code() const { return err_.code; }
             const char* name() const { return uv_err_name(err_); }
@@ -79,33 +82,29 @@ namespace native
             int port;
         };
 
-        error get_last_error() { return error(uv_last_error(uv_default_loop())); }
+        resval get_last_error() { return resval(uv_last_error(uv_default_loop())); }
 
         sockaddr_in to_ip4_addr(const std::string& ip, int port) { return uv_ip4_addr(ip.c_str(), port); }
         sockaddr_in6 to_ip6_addr(const std::string& ip, int port) { return uv_ip6_addr(ip.c_str(), port); }
 
-        error from_ip4_addr(sockaddr_in* src, std::string& ip, int& port)
+        resval from_ip4_addr(sockaddr_in* src, std::string& ip, int& port)
         {
             char dest[16];
-            if(uv_ip4_name(src, dest, 16) == 0)
-            {
-                ip = dest;
-                port = static_cast<int>(ntohs(src->sin_port));
-                return error();
-            }
-            return get_last_error();
+            if(uv_ip4_name(src, dest, 16)) get_last_error();
+
+            ip = dest;
+            port = static_cast<int>(ntohs(src->sin_port));
+            return resval();
         }
 
-        error from_ip6_addr(sockaddr_in6* src, std::string& ip, int& port)
+        resval from_ip6_addr(sockaddr_in6* src, std::string& ip, int& port)
         {
             char dest[46];
-            if(uv_ip6_name(src, dest, 46) == 0)
-            {
-                ip = dest;
-                port = static_cast<int>(ntohs(src->sin6_port));
-                return error();
-            }
-            return get_last_error();
+            if(uv_ip6_name(src, dest, 46)) get_last_error();
+
+            ip = dest;
+            port = static_cast<int>(ntohs(src->sin6_port));
+            return resval();
         }
 
         class callback_object_base

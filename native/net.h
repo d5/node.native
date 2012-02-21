@@ -135,7 +135,7 @@ namespace native
                 {
                     flags_ |= FLAG_SHUTDOWN;
 
-                    stream_->on_complete([&](detail::error e){
+                    stream_->on_complete([&](detail::resval r){
                         assert(flags_ & FLAG_SHUTDOWN);
                         assert(!writable());
 
@@ -146,10 +146,10 @@ namespace native
                             destroy();
                         }
                     });
-                    detail::error e = stream_->shutdown();
-                    if(e)
+                    detail::resval rv = stream_->shutdown();
+                    if(!rv)
                     {
-                        destroy(e);
+                        destroy(Exception(rv));
                         return false;
                     }
                 }
@@ -188,12 +188,12 @@ namespace native
 
                 if(!stream_) throw Exception("The socket is closed.");
 
-                stream_->on_complete([=](detail::error err) {
+                stream_->on_complete([=](detail::resval r) {
                     if(destroyed_) return;
 
-                    if(err)
+                    if(!r)
                     {
-                        destroy(err);
+                        destroy(r);
                         return;
                     }
 
@@ -209,10 +209,10 @@ namespace native
                         destroy();
                     }
                 });
-                detail::error e = stream_->write(buffer.base(), 0, buffer.size());
-                if(e)
+                detail::resval rv = stream_->write(buffer.base(), 0, buffer.size());
+                if(!rv)
                 {
-                    destroy(e);
+                    destroy(rv);
                     return false;
                 }
 
@@ -414,8 +414,8 @@ namespace native
                 if(stream_)
                 {
                     // set on_read callback
-                    stream_->on_read([&](const char* buffer, std::size_t offset, std::size_t length, detail::stream* pending, detail::error e){
-                        on_read(buffer, offset, length, e);
+                    stream_->on_read([&](const char* buffer, std::size_t offset, std::size_t length, detail::stream* pending, detail::resval r){
+                        on_read(buffer, offset, length, r);
                     });
 
                     // identify socket type
@@ -474,7 +474,7 @@ namespace native
                 connect_queue_.clear();
             }
 
-            void on_read(const char* buffer, std::size_t offset, std::size_t length, detail::error e)
+            void on_read(const char* buffer, std::size_t offset, std::size_t length, detail::resval rv)
             {
                 timers::active(this);
 
@@ -491,7 +491,7 @@ namespace native
                 }
                 else
                 {
-                    if(e.code() == UV_EOF)
+                    if(rv.code() == UV_EOF)
                     {
                         readable(false);
 
@@ -504,13 +504,13 @@ namespace native
                         if(haveListener<event::end>()) emit<event::end>();
                         if(on_end_callback_) on_end_callback_();
                     }
-                    else if(e.code() == ECONNRESET)
+                    else if(rv.code() == ECONNRESET)
                     {
                         destroy();
                     }
                     else
                     {
-                        destroy(Exception(e));
+                        destroy(Exception(rv));
                     }
                 }
             }
@@ -654,14 +654,13 @@ namespace native
 
             detail::stream* create_server_handle(const std::string& ip_or_pipe_name, int port)
             {
-                detail::error e;
+                detail::resval rv;
                 if(isIPv4(ip_or_pipe_name))
                 {
                     auto handle = new detail::tcp();
                     assert(handle);
 
-                    auto err = handle->bind(ip_or_pipe_name, port);
-                    if(err)
+                    if(!handle->bind(ip_or_pipe_name, port))
                     {
                         handle->close();
                         return nullptr;
@@ -675,8 +674,7 @@ namespace native
                     auto handle = new detail::tcp();
                     assert(handle);
 
-                    auto err = handle->bind6(ip_or_pipe_name, port);
-                    if(err)
+                    if(!handle->bind6(ip_or_pipe_name, port))
                     {
                         handle->close();
                         return nullptr;
@@ -690,8 +688,7 @@ namespace native
                     auto handle = new detail::pipe();
                     assert(handle);
 
-                    auto err = handle->bind(ip_or_pipe_name);
-                    if(err)
+                    if(!handle->bind(ip_or_pipe_name))
                     {
                         handle->close();
                         return nullptr;
@@ -719,10 +716,10 @@ namespace native
                     }
                 }
 
-                detail::error e = stream_->listen(backlog_, [&](detail::stream* s, detail::error e){
-                    if(e)
+                detail::resval rv = stream_->listen(backlog_, [&](detail::stream* s, detail::resval r){
+                    if(!r)
                     {
-                        emit<event::error>(Exception(e, "Failed to accept client socket (1)."));
+                        emit<event::error>(Exception(r, "Failed to accept client socket (1)."));
                     }
                     else
                     {
@@ -749,12 +746,12 @@ namespace native
                     }
                 });
 
-                if(e)
+                if(!rv)
                 {
                     stream_->close();
                     stream_ = nullptr;
                     process::nextTick([&](){
-                        emit<event::error>(Exception(e, "Failed to initiate listening on server socket (1)."));
+                        emit<event::error>(Exception(rv, "Failed to initiate listening on server socket (1)."));
                     });
                     return false;
                 }

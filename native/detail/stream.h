@@ -12,8 +12,8 @@ namespace native
 
         class stream : public handle
         {
-            typedef std::function<void(const char*, std::size_t, std::size_t, stream*, error)> on_read_callback_type;
-            typedef std::function<void(error)> on_complete_callback_type;
+            typedef std::function<void(const char*, std::size_t, std::size_t, stream*, resval)> on_read_callback_type;
+            typedef std::function<void(resval)> on_complete_callback_type;
 
         protected:
             stream(uv_stream_t* stream)
@@ -51,7 +51,7 @@ namespace native
                 else return 0;
             }
 
-            virtual error read_start()
+            virtual resval read_start()
             {
                 bool res = false;
                 bool ipc_pipe = stream_->type == UV_NAMED_PIPE && reinterpret_cast<uv_pipe_t*>(stream_)->ipc;
@@ -73,16 +73,16 @@ namespace native
                     }) == 0;
                 }
 
-                return res?error():get_last_error();
+                return res?resval():get_last_error();
             }
 
-            virtual error read_stop()
+            virtual resval read_stop()
             {
-                bool res = uv_read_stop(stream_) == 0;
-                return res?error():get_last_error();
+                if(uv_read_stop(stream_)) return get_last_error();
+                return resval();
             }
 
-            virtual error write(const char* data, int offset, int length, stream* send_stream=nullptr)
+            virtual resval write(const char* data, int offset, int length, stream* send_stream=nullptr)
             {
                 bool res = false;
                 bool ipc_pipe = stream_->type == UV_NAMED_PIPE && reinterpret_cast<uv_pipe_t*>(stream_)->ipc;
@@ -99,7 +99,7 @@ namespace native
                     res = uv_write2(req, stream_, &buf, 1, send_stream?send_stream->uv_stream():nullptr, [](uv_write_t* req, int status) {
                         auto self = reinterpret_cast<stream*>(req->handle->data);
                         assert(self);
-                        if(self->on_complete_) self->on_complete_(status?get_last_error():error());
+                        if(self->on_complete_) self->on_complete_(status?get_last_error():resval());
                         if(req) delete req;
                     }) == 0;
                 }
@@ -108,16 +108,16 @@ namespace native
                     res = uv_write(req, stream_, &buf, 1, [](uv_write_t* req, int status) {
                         auto self = reinterpret_cast<stream*>(req->handle->data);
                         assert(self);
-                        if(self->on_complete_) self->on_complete_(status?get_last_error():error());
+                        if(self->on_complete_) self->on_complete_(status?get_last_error():resval());
                         if(req) delete req;
                     }) == 0;
                 }
 
                 if(!res) delete req;
-                return res?error():get_last_error();
+                return res?resval():get_last_error();
             }
 
-            virtual error shutdown()
+            virtual resval shutdown()
             {
                 auto req = new uv_shutdown_t;
                 assert(req);
@@ -125,15 +125,15 @@ namespace native
                 bool res = uv_shutdown(req, stream_, [](uv_shutdown_t* req, int status){
                     auto self = reinterpret_cast<stream*>(req->handle->data);
                     assert(self);
-                    if(self->on_complete_) self->on_complete_(status?get_last_error():error());
+                    if(self->on_complete_) self->on_complete_(status?get_last_error():resval());
                     delete req;
                 }) == 0;
 
                 if(!res) delete req;
-                return res?error():get_last_error();
+                return res?resval():get_last_error();
             }
 
-            virtual error listen(int backlog, std::function<void(stream*, error)> callback) = 0;
+            virtual resval listen(int backlog, std::function<void(stream*, resval)> callback) = 0;
 
             uv_stream_t* uv_stream() { return stream_; }
             const uv_stream_t* uv_stream() const { return stream_; }
@@ -172,7 +172,7 @@ namespace native
                             assert(accepted);
 
                             // invoke "onread" callback
-                            if(on_read_) on_read_(buf.base, 0, nread, accepted, error());
+                            if(on_read_) on_read_(buf.base, 0, nread, accepted, resval());
                         }
                         else
                         {
@@ -180,7 +180,7 @@ namespace native
                             assert(pending == UV_UNKNOWN_HANDLE);
 
                             // invoke "onread" callback
-                            if(on_read_) on_read_(buf.base, 0, nread, nullptr, error());
+                            if(on_read_) on_read_(buf.base, 0, nread, nullptr, resval());
                         }
                     }
                 }

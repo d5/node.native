@@ -27,11 +27,11 @@ namespace native
             case UV_FS_FCHOWN:
                 if(req->result == -1)
                 {
-                    callbacks::invoke<std::function<void(error)>>(req->data, 0, error(static_cast<uv_err_code>(req->errorno)));
+                    callbacks::invoke<std::function<void(resval)>>(req->data, 0, resval(static_cast<uv_err_code>(req->errorno)));
                 }
                 else
                 {
-                    callbacks::invoke<std::function<void(error)>>(req->data, 0, error());
+                    callbacks::invoke<std::function<void(resval)>>(req->data, 0, resval());
                 }
                 break;
 
@@ -46,11 +46,11 @@ namespace native
             case UV_FS_READ:
                 if(req->result == -1)
                 {
-                    callbacks::invoke<std::function<void(error, int)>>(req->data, 0, error(static_cast<uv_err_code>(req->errorno)), -1);
+                    callbacks::invoke<std::function<void(resval, int)>>(req->data, 0, resval(static_cast<uv_err_code>(req->errorno)), -1);
                 }
                 else
                 {
-                    callbacks::invoke<std::function<void(error, int)>>(req->data, 0, error(), req->result);
+                    callbacks::invoke<std::function<void(resval, int)>>(req->data, 0, resval(), req->result);
                 }
                 break;
 
@@ -64,18 +64,18 @@ namespace native
             case UV_FS_READLINK:
                 if(req->result == -1)
                 {
-                    callbacks::invoke<std::function<void(error, const std::string&)>>(req->data, 0, error(static_cast<uv_err_code>(req->errorno)), std::string());
+                    callbacks::invoke<std::function<void(resval, const std::string&)>>(req->data, 0, resval(static_cast<uv_err_code>(req->errorno)), std::string());
                 }
                 else
                 {
-                    callbacks::invoke<std::function<void(error, const std::string&)>>(req->data, 0, error(), std::string(static_cast<char*>(req->ptr)));
+                    callbacks::invoke<std::function<void(resval, const std::string&)>>(req->data, 0, resval(), std::string(static_cast<char*>(req->ptr)));
                 }
                 break;
 
             case UV_FS_READDIR:
                 if(req->result == -1)
                 {
-                    callbacks::invoke<std::function<void(error, const std::vector<std::string>&)>>(req->data, 0, error(static_cast<uv_err_code>(req->errorno)), std::vector<std::string>());
+                    callbacks::invoke<std::function<void(resval, const std::vector<std::string>&)>>(req->data, 0, resval(static_cast<uv_err_code>(req->errorno)), std::vector<std::string>());
                 }
                 else
                 {
@@ -89,16 +89,16 @@ namespace native
                         std::string name(namebuf);
                         names.push_back(name);
 
-    #ifndef NDEBUG
+#ifndef NDEBUG
                         namebuf += name.length();
                         assert(*namebuf == '\0');
                         namebuf += 1;
-    #else
+#else
                         namebuf += name.length() + 1;
-    #endif
+#endif
                     }
 
-                    callbacks::invoke<std::function<void(error, const std::vector<std::string>&)>>(req->data, 0, error(), names);
+                    callbacks::invoke<std::function<void(resval, const std::vector<std::string>&)>>(req->data, 0, resval(), names);
                 }
                 break;
 
@@ -119,7 +119,7 @@ namespace native
         // P: parameters
         // C: callback signature
         template<typename F, typename C, typename ...P>
-        error fs_exec_async(F uv_function, C callback, P&&... params)
+        resval fs_exec_async(F uv_function, C callback, P&&... params)
         {
             auto req = new uv_fs_t;
             assert(req);
@@ -138,14 +138,15 @@ namespace native
                 on_fs_after(req);
             }
 
-            return error();
+            // return value is always no error.
+            return resval();
         }
 
         // TODO: Node.js implementation takes 'path' argument and pass it to exception if there's any.
         // F: function name
         // P: parameters
         template<typename F, typename ...P>
-        error fs_exec_sync(F uv_function, P&&... params)
+        resval fs_exec_sync(F uv_function, P&&... params)
         {
             uv_fs_t req;
 
@@ -157,37 +158,37 @@ namespace native
             }
 
             uv_fs_req_cleanup(&req);
-            return error();
+            return resval();
         }
 
         template<typename F, typename C, typename ...P>
-        error fs_exec(F uv_function, C callback, P&&... params)
+        resval fs_exec(F uv_function, C callback, P&&... params)
         {
             if(callback) return fs_exec_async(uv_function, callback, std::forward<P>(params)...);
             else return fs_exec_sync(uv_function, std::forward<P>(params)...);
         }
 
-        error fs_close(int fd, std::function<void(error)> callback=nullptr)
+        resval fs_close(int fd, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_close, callback, fd);
         }
 
-        error fs_sym_link(const std::string& dest, const std::string& src, bool dir=false, std::function<void(error)> callback=nullptr)
+        resval fs_sym_link(const std::string& dest, const std::string& src, bool dir=false, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_symlink, callback, dest.c_str(), src.c_str(), dir?UV_FS_SYMLINK_DIR:0);
         }
 
-        error fs_link(const std::string& orig_path, const std::string& new_path, std::function<void(error)> callback=nullptr)
+        resval fs_link(const std::string& orig_path, const std::string& new_path, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_link, callback, orig_path.c_str(), new_path.c_str());
         }
 
-        error fs_read_link(const std::string& path, std::function<void(error, const std::string&)> callback)
+        resval fs_read_link(const std::string& path, std::function<void(resval, const std::string&)> callback)
         {
             return fs_exec_async(uv_fs_readlink, callback, path.c_str());
         }
 
-        error fs_read_link_sync(const std::string& path, std::string& result)
+        resval fs_read_link_sync(const std::string& path, std::string& result)
         {
             uv_fs_t req;
 
@@ -201,50 +202,50 @@ namespace native
             result = std::string(static_cast<char*>(req.ptr));
 
             uv_fs_req_cleanup(&req);
-            return error();
+            return resval();
         }
 
-        error fs_rename(const std::string& old_path, const std::string& new_path, std::function<void(error)> callback=nullptr)
+        resval fs_rename(const std::string& old_path, const std::string& new_path, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_rename, callback, old_path.c_str(), new_path.c_str());
         }
 
-        error fs_fdata_sync(int fd, std::function<void(error)> callback=nullptr)
+        resval fs_fdata_sync(int fd, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_fdatasync, callback, fd);
         }
 
-        error fs_fsync(int fd, std::function<void(error)> callback=nullptr)
+        resval fs_fsync(int fd, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_fsync, callback, fd);
         }
 
-        error fs_unlink(const std::string& path, std::function<void(error)> callback=nullptr)
+        resval fs_unlink(const std::string& path, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_unlink, callback, path.c_str());
         }
 
-        error fs_rmdir(const std::string& path, std::function<void(error)> callback=nullptr)
+        resval fs_rmdir(const std::string& path, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_rmdir, callback, path.c_str());
         }
 
-        error fs_mkdir(const std::string& path, int mode, std::function<void(error)> callback=nullptr)
+        resval fs_mkdir(const std::string& path, int mode, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_mkdir, callback, path.c_str(), mode);
         }
 
-        error fs_sendfile(int out_fd, int in_fd, off_t in_offset, size_t length, std::function<void(error, int)> callback=nullptr)
+        resval fs_sendfile(int out_fd, int in_fd, off_t in_offset, size_t length, std::function<void(resval, int)> callback=nullptr)
         {
             return fs_exec(uv_fs_sendfile, callback, out_fd, in_fd, in_offset, length);
         }
 
-        error fs_read_dir(const std::string& path, std::function<void(error, const std::vector<std::string>&)> callback)
+        resval fs_read_dir(const std::string& path, std::function<void(resval, const std::vector<std::string>&)> callback)
         {
             return fs_exec_async(uv_fs_readdir, callback, path.c_str(), 0);
         }
 
-        error fs_read_dir_sync(const std::string& path, std::vector<std::string>& names)
+        resval fs_read_dir_sync(const std::string& path, std::vector<std::string>& names)
         {
             uv_fs_t req;
 
@@ -263,25 +264,25 @@ namespace native
                 std::string name(namebuf);
                 names.push_back(name);
 
-    #ifndef NDEBUG
+#ifndef NDEBUG
                 namebuf += name.length();
                 assert(*namebuf == '\0');
                 namebuf += 1;
-    #else
+#else
                 namebuf += name.length() + 1;
-    #endif
+#endif
             }
 
             uv_fs_req_cleanup(&req);
-            return error();
+            return resval();
         }
 
-        error fs_open(const std::string& path, int flags, int mode, std::function<void(error, int)> callback)
+        resval fs_open(const std::string& path, int flags, int mode, std::function<void(resval, int)> callback)
         {
             return fs_exec_async(uv_fs_open, callback, path.c_str(), flags, mode);
         }
 
-        error fs_open_sync(const std::string& path, int flags, int mode, int& fd)
+        resval fs_open_sync(const std::string& path, int flags, int mode, int& fd)
         {
             uv_fs_t req;
 
@@ -295,10 +296,10 @@ namespace native
             fd = res;
 
             uv_fs_req_cleanup(&req);
-            return error();
+            return resval();
         }
 
-        error fs_write(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, std::function<void(error, int)> callback)
+        resval fs_write(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, std::function<void(resval, int)> callback)
         {
             assert(offset < buffer.size());
             assert(offset + length <= buffer.size());
@@ -306,12 +307,12 @@ namespace native
             return fs_exec_async(uv_fs_write, callback, fd, const_cast<char*>(&buffer[offset]), length, position);
         }
 
-        error fs_write(int fd, const std::vector<char>& buffer, off_t offset, size_t length, std::function<void(error, int)> callback)
+        resval fs_write(int fd, const std::vector<char>& buffer, off_t offset, size_t length, std::function<void(resval, int)> callback)
         {
             return fs_write(fd, buffer, offset, length, static_cast<off_t>(-1), callback);
         }
 
-        error fs_write_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, size_t& nwritten)
+        resval fs_write_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, size_t& nwritten)
         {
             assert(offset < buffer.size());
             assert(offset + length <= buffer.size());
@@ -328,15 +329,15 @@ namespace native
             nwritten = static_cast<size_t>(res);
 
             uv_fs_req_cleanup(&req);
-            return error();
+            return resval();
         }
 
-        error fs_write_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, size_t& nwritten)
+        resval fs_write_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, size_t& nwritten)
         {
             return fs_write_sync(fd, buffer, offset, length, static_cast<off_t>(-1), nwritten);
         }
 
-        error fs_read(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, std::function<void(error, int)> callback)
+        resval fs_read(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, std::function<void(resval, int)> callback)
         {
             assert(offset < buffer.size());
             assert(offset + length <= buffer.size());
@@ -344,12 +345,12 @@ namespace native
             return fs_exec_async(uv_fs_read, callback, fd, const_cast<char*>(&buffer[offset]), length, position);
         }
 
-        error fs_read(int fd, const std::vector<char>& buffer, off_t offset, size_t length, std::function<void(error, int)> callback)
+        resval fs_read(int fd, const std::vector<char>& buffer, off_t offset, size_t length, std::function<void(resval, int)> callback)
         {
             return fs_read(fd, buffer, offset, length, static_cast<off_t>(-1), callback);
         }
 
-        error fs_read_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, size_t& nread)
+        resval fs_read_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, off_t position, size_t& nread)
         {
             assert(offset < buffer.size());
             assert(offset + length <= buffer.size());
@@ -366,51 +367,51 @@ namespace native
             nread = static_cast<size_t>(res);
 
             uv_fs_req_cleanup(&req);
-            return error();
+            return resval();
         }
 
-        error fs_read_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, size_t& nread)
+        resval fs_read_sync(int fd, const std::vector<char>& buffer, off_t offset, size_t length, size_t& nread)
         {
             return fs_read_sync(fd, buffer, offset, length, static_cast<off_t>(-1), nread);
         }
 
-        error fs_chmod(const std::string& path, int mode, std::function<void(error)> callback=nullptr)
+        resval fs_chmod(const std::string& path, int mode, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_chmod, callback, path.c_str(), mode);
         }
 
-        error fs_fchmod(int fd, int mode, std::function<void(error)> callback=nullptr)
+        resval fs_fchmod(int fd, int mode, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_fchmod, callback, fd, mode);
         }
 
-        error fs_chown(const std::string& path, int uid, int gid, std::function<void(error)> callback=nullptr)
+        resval fs_chown(const std::string& path, int uid, int gid, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_chown, callback, path.c_str(), uid, gid);
         }
 
-        error fs_fchfown(int fd, int uid, int gid, std::function<void(error)> callback=nullptr)
+        resval fs_fchfown(int fd, int uid, int gid, std::function<void(resval)> callback=nullptr)
         {
             return fs_exec(uv_fs_fchown, callback, fd, uid, gid);
         }
 
-        error fs_utime(const std::string& path, double atime, double mtime, std::function<void()> callback=nullptr)
+        resval fs_utime(const std::string& path, double atime, double mtime, std::function<void()> callback=nullptr)
         {
             return fs_exec(uv_fs_utime, callback, path.c_str(), atime, mtime);
         }
 
-        error fs_futime(int fd, double atime, double mtime, std::function<void()> callback=nullptr)
+        resval fs_futime(int fd, double atime, double mtime, std::function<void()> callback=nullptr)
         {
             return fs_exec(uv_fs_futime, callback, fd, atime, mtime);
         }
 
         // TODO: implement fs_*stat() functions.
-        error fs_stat() { return error(); }
-        error fs_lstat() { return error(); }
-        error fs_fstat() { return error(); }
+        resval fs_stat() { return resval(); }
+        resval fs_lstat() { return resval(); }
+        resval fs_fstat() { return resval(); }
 
         // TODO: implement fs_truncate() function.
-        error fs_truncate() { return error(); }
+        resval fs_truncate() { return resval(); }
     }
 }
 

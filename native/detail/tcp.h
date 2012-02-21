@@ -44,13 +44,11 @@ namespace native
                     na->is_ipv4 = (addr.ss_family == AF_INET);
                     if(na->is_ipv4)
                     {
-                        error e = from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), na->ip, na->port);
-                        if(!e) return na;
+                        if(from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), na->ip, na->port)) return na;
                     }
                     else
                     {
-                        error e = from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), na->ip, na->port);
-                        if(!e) return na;
+                        if(from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), na->ip, na->port)) return na;
                     }
                 }
 
@@ -71,68 +69,46 @@ namespace native
                     na->is_ipv4 = (addr.ss_family == AF_INET);
                     if(na->is_ipv4)
                     {
-                        error e = from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), na->ip, na->port);
-                        if(!e) return na;
+                        if(from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), na->ip, na->port)) return na;
                     }
                     else
                     {
-                        error e = from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), na->ip, na->port);
-                        if(!e) return na;
+                        if(from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), na->ip, na->port)) return na;
                     }
                 }
 
                 return nullptr;
             }
 
-            virtual error get_peer_name(bool& is_ipv4, std::string& ip, int& port)
+            virtual resval set_no_delay(bool enable)
             {
-                struct sockaddr_storage addr;
-                int addrlen = static_cast<int>(sizeof(addr));
-                bool res = uv_tcp_getpeername(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0;
-
-                if(res)
-                {
-                    assert(addr.ss_family == AF_INET || addr.ss_family == AF_INET6);
-
-                    is_ipv4 = (addr.ss_family == AF_INET);
-                    if(is_ipv4) return from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), ip, port);
-                    else return from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), ip, port);
-                }
-                else
-                {
-                    return get_last_error();
-                }
+                if(uv_tcp_nodelay(&tcp_, enable?1:0)) return get_last_error();
+                return resval();
             }
 
-            virtual error set_no_delay(bool enable)
+            virtual resval set_keepalive(bool enable, unsigned int delay)
             {
-                bool res = uv_tcp_nodelay(&tcp_, enable?1:0) == 0;
-                return res?error():get_last_error();
+                if(uv_tcp_keepalive(&tcp_, enable?1:0, delay)) return get_last_error();
+                return resval();
             }
 
-            virtual error set_keepalive(bool enable, unsigned int delay)
-            {
-                bool res = uv_tcp_keepalive(&tcp_, enable?1:0, delay) == 0;
-                return res?error():get_last_error();
-            }
-
-            virtual error bind(const std::string& ip, int port)
+            virtual resval bind(const std::string& ip, int port)
             {
                 struct sockaddr_in addr = to_ip4_addr(ip, port);
 
-                bool res = uv_tcp_bind(&tcp_, addr) == 0;
-                return res?error():get_last_error();
+                if(uv_tcp_bind(&tcp_, addr)) return get_last_error();
+                return resval();
             }
 
-            virtual error bind6(const std::string& ip, int port)
+            virtual resval bind6(const std::string& ip, int port)
             {
                 struct sockaddr_in6 addr = to_ip6_addr(ip, port);
 
-                bool res = uv_tcp_bind6(&tcp_, addr) == 0;
-                return res?error():get_last_error();
+                if(uv_tcp_bind6(&tcp_, addr)) return get_last_error();
+                return resval();
             }
 
-            virtual error listen(int backlog, std::function<void(stream*, error)> callback)
+            virtual resval listen(int backlog, std::function<void(stream*, resval)> callback)
             {
                 callbacks::store(lut(), cid_uv_listen, callback);
                 bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&tcp_), backlog, [](uv_stream_t* handle, int status) {
@@ -147,7 +123,7 @@ namespace native
                         int r = uv_accept(handle, reinterpret_cast<uv_stream_t*>(&client_obj->tcp_));
                         assert(r == 0);
 
-                        callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_listen, client_obj, error());
+                        callbacks::invoke<decltype(callback)>(self->lut(), cid_uv_listen, client_obj, resval());
                     }
                     else
                     {
@@ -155,11 +131,11 @@ namespace native
                     }
                 }) == 0;
 
-                return res?error():get_last_error();
+                return res?resval():get_last_error();
             }
 
             // TODO: Node.js implementation takes 5 parameter in callback function.
-            virtual error connect(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
+            virtual resval connect(const std::string& ip, int port, std::function<void(resval, bool, bool)> callback)
             {
                 struct sockaddr_in addr = to_ip4_addr(ip, port);
 
@@ -170,11 +146,11 @@ namespace native
 
                 bool res = uv_tcp_connect(req, &tcp_, addr, on_connect) == 0;
                 if(!res) delete req;
-                return res?error():get_last_error();
+                return res?resval():get_last_error();
             }
 
             // TODO: Node.js implementation takes 5 parameter in callback function.
-            virtual error connect6(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
+            virtual resval connect6(const std::string& ip, int port, std::function<void(resval, bool, bool)> callback)
             {
                 struct sockaddr_in6 addr = to_ip6_addr(ip, port);
 
@@ -185,7 +161,7 @@ namespace native
 
                 bool res = uv_tcp_connect6(req, &tcp_, addr, on_connect) == 0;
                 if(!res) delete req;
-                return res?error():get_last_error();
+                return res?resval():get_last_error();
             }
 
         protected:
@@ -206,8 +182,8 @@ namespace native
                 auto self = reinterpret_cast<tcp*>(req->handle->data);
                 assert(self);
 
-                callbacks::invoke<std::function<void(error, bool, bool)>>(self->lut(), cid_uv_connect,
-                    status?get_last_error():error(), true, true);
+                callbacks::invoke<std::function<void(resval, bool, bool)>>(self->lut(), cid_uv_connect,
+                    status?get_last_error():resval(), true, true);
 
                 delete req;
             }
