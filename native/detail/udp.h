@@ -10,9 +10,6 @@ namespace native
     {
         class udp : public stream
         {
-            // override handle::ref(), handle::unref() to do nothing.
-            virtual void ref() {}
-            virtual void unref() {}
         };
     }
 }

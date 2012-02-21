@@ -71,10 +71,10 @@ namespace native
         {
             friend class Server;
 
-            static constexpr int FLAG_GOT_EOF = 1 << 0;
-            static constexpr int FLAG_SHUTDOWN = 1 << 1;
-            static constexpr int FLAG_DESTROY_SOON = 1 << 2;
-            static constexpr int FLAG_SHUTDOWNQUED = 1 << 3;
+            static const int FLAG_GOT_EOF = 1 << 0;
+            static const int FLAG_SHUTDOWN = 1 << 1;
+            static const int FLAG_DESTROY_SOON = 1 << 2;
+            static const int FLAG_SHUTDOWNQUED = 1 << 3;
 
         protected:
             Socket(detail::stream* handle, Server* server, bool allowHalfOpen)
@@ -93,7 +93,6 @@ namespace native
                 , connect_queue_()
                 , on_data_callback_()
                 , on_end_callback_()
-                , on_destroy_callback_()
             {
                 // register events
                 registerEvent<event::connect>();
@@ -103,6 +102,7 @@ namespace native
                 registerEvent<event::drain>();
                 registerEvent<event::error>();
                 registerEvent<event::close>();
+                registerEvent<internal_destroy_event>(); // only for Server class
 
                 // init socket
                 init_socket(handle);
@@ -134,7 +134,8 @@ namespace native
                 else
                 {
                     flags_ |= FLAG_SHUTDOWN;
-                    detail::error e = stream_->shutdown([&](detail::error e){
+
+                    stream_->on_complete([&](detail::error e){
                         assert(flags_ & FLAG_SHUTDOWN);
                         assert(!writable());
 
@@ -145,6 +146,7 @@ namespace native
                             destroy();
                         }
                     });
+                    detail::error e = stream_->shutdown();
                     if(e)
                     {
                         destroy(e);
@@ -186,7 +188,7 @@ namespace native
 
                 if(!stream_) throw Exception("The socket is closed.");
 
-                detail::error e = stream_->write(buffer.base(), 0, buffer.size(), [=](detail::error err){
+                stream_->on_complete([=](detail::error err) {
                     if(destroyed_) return;
 
                     if(err)
@@ -207,6 +209,7 @@ namespace native
                         destroy();
                     }
                 });
+                detail::error e = stream_->write(buffer.base(), 0, buffer.size());
                 if(e)
                 {
                     destroy(e);
@@ -417,7 +420,7 @@ namespace native
                 if(stream_)
                 {
                     // set on_read callback
-                    stream_->set_on_read_callback([&](const char* buffer, std::size_t offset, std::size_t length, detail::error e){
+                    stream_->on_read([&](const char* buffer, std::size_t offset, std::size_t length, detail::stream* pending, detail::error e){
                         on_read(buffer, offset, length, e);
                     });
 
@@ -447,20 +450,17 @@ namespace native
 
                 // Because of C++ declration order, we cannot call Server class member functions here.
                 // Instead, Server handles this using delegate.
-#if 1
-                if(on_destroy_callback_) on_destroy_callback_();
-#else
                 if(server_)
                 {
                     //server_->connections_--;
                     //server_->emitCloseIfDrained();
+                    emit<internal_destroy_event>();
                 }
-#endif
 
                 if(stream_)
                 {
                     stream_->close();
-                    stream_->set_on_read_callback(nullptr);
+                    stream_->on_read(nullptr);
                     stream_ = nullptr;
                 }
 
@@ -544,8 +544,8 @@ namespace native
 
             std::function<void()> on_end_callback_;
 
-            // TODO: only Server class must use this delegate.
-            std::function<void()> on_destroy_callback_;
+            // only for Server class
+            struct internal_destroy_event : public util::callback_def<> {};
         };
 
         class Server : public EventEmitter
@@ -734,11 +734,10 @@ namespace native
                         auto socket = new Socket(s, this, allow_half_open_);
                         assert(socket);
 
-                        socket->on_destroy_callback_ = [&](){
+                        socket->once<Socket::internal_destroy_event>([&](){
                             connections_--;
                             emitCloseIfDrained();
-                        };
-
+                        });
                         socket->resume();
 
                         connections_++;

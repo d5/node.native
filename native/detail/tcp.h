@@ -24,10 +24,6 @@ namespace native
             {}
 
         public:
-            // override handle::ref(), handle::unref() to do nothing.
-            virtual void ref() {}
-            virtual void unref() {}
-
             error get_sock_name(bool& is_ipv4, std::string& ip, int& port)
             {
                 struct sockaddr_storage addr;
@@ -149,6 +145,18 @@ namespace native
                 bool res = uv_tcp_connect6(req, &tcp_, addr, on_connect) == 0;
                 if(!res) delete req;
                 return res?error():get_last_error();
+            }
+
+        protected:
+            virtual stream* accept_new_()
+            {
+                auto x = new tcp;
+                assert(x);
+
+                int r = uv_accept(reinterpret_cast<uv_stream_t*>(&tcp_), reinterpret_cast<uv_stream_t*>(&x->tcp_));
+                assert(r == 0);
+
+                return x;
             }
 
         private:

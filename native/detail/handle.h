@@ -24,14 +24,14 @@ namespace native
             }
 
         public:
-            virtual void ref()
+            void ref()
             {
                 if(!unref_) return;
                 unref_ = false;
                 uv_ref(uv_default_loop());
             }
 
-            virtual void unref()
+            void unref()
             {
                 if(unref_) return;
                 unref_ = true;
@@ -49,7 +49,7 @@ namespace native
             {
                 if(!handle_) return;
 
-                uv_close(handle_, [](uv_handle_t* h){
+                uv_close(handle_, [](uv_handle_t* h) {
                     auto self = reinterpret_cast<handle*>(h->data);
                     assert(self && self->handle_ == nullptr);
                     delete self;
@@ -61,8 +61,7 @@ namespace native
                 state_change();
             }
 
-            virtual void state_change() {
-            }
+            virtual void state_change() {}
 
             uv_handle_t* uv_handle() { return handle_; }
             const uv_handle_t* uv_handle() const { return handle_; }
