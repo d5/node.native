@@ -7,7 +7,6 @@
 #include "error.h"
 #include "process.h"
 #include "timers.h"
-#include <arpa/inet.h>
 
 namespace native
 {
@@ -24,14 +23,7 @@ namespace native
          */
         int isIP(const std::string& input)
         {
-            if(input.empty()) return 0;
-
-            unsigned char buf[sizeof(in6_addr)];
-
-            if(inet_pton(AF_INET, input.c_str(), buf) == 1) return 4;
-            else if(inet_pton(AF_INET6, input.c_str(), buf) == 1) return 6;
-
-            return 0;
+            return detail::get_ip_version(input);
         }
 
         /**
@@ -91,8 +83,8 @@ namespace native
                 , pending_write_reqs_()
                 , connect_queue_size_(0)
                 , connect_queue_()
-                , on_data_callback_()
-                , on_end_callback_()
+                , on_data_()
+                , on_end_()
             {
                 // register events
                 registerEvent<event::connect>();
@@ -122,7 +114,7 @@ namespace native
                     flags_ |= FLAG_SHUTDOWNQUED;
                 }
 
-                if(!writable()) return false;
+                if(!writable()) return true;
                 writable(false);
 
                 if(buffer.size()) write(buffer);
@@ -186,7 +178,7 @@ namespace native
 
                 timers::active(this);
 
-                if(!stream_) throw Exception("The socket is closed.");
+                if(!stream_) throw Exception("This socket is closed.");
 
                 stream_->on_complete([=](detail::resval r) {
                     if(destroyed_) return;
@@ -231,24 +223,6 @@ namespace native
                 destroy_(false, Exception());
             }
 
-            virtual void pause()
-            {
-                if(stream_)
-                {
-                    stream_->read_stop();
-                    stream_->unref(); // See tcp::unref() does nothing.
-                }
-            }
-
-            virtual void resume()
-            {
-                if(stream_)
-                {
-                    stream_->read_start();
-                    stream_->ref(); // See tcp::unref() does nothing.
-                }
-            }
-
             virtual void destroySoon()
             {
                 writable(false);
@@ -257,6 +231,24 @@ namespace native
                 if(pending_write_reqs_ == 0)
                 {
                     destroy();
+                }
+            }
+
+            virtual void pause()
+            {
+                if(stream_)
+                {
+                    stream_->read_stop();
+                    stream_->unref();
+                }
+            }
+
+            virtual void resume()
+            {
+                if(stream_)
+                {
+                    stream_->read_start();
+                    stream_->ref();
                 }
             }
 
@@ -378,33 +370,97 @@ namespace native
             }
 
             // TODO: host name lookup (DNS) not supported
-            bool connect(const std::string& ip_or_path, int port=0, std::function<void()> callback=nullptr)
+            bool connect(const std::string& ip_or_path, int port=0, event::connect::callback_type callback=nullptr)
             {
-                auto ip = isIP(ip_or_path);
-
                 // recreate socket handle if needed
                 if(destroyed_ || !stream_)
                 {
-                    if(ip == 0)
-                    {
-                        // create pipe socket
-                        init_socket(new detail::pipe);
-                    }
-                    else
-                    {
-                        // create TCP socket
-                        init_socket(new detail::tcp);
-                    }
+                    detail::stream* stream = nullptr;
+                    if(isIP(ip_or_path)) stream = new detail::tcp;
+                    else stream = new detail::pipe;
+                    assert(stream);
+
+                    init_socket(stream);
                 }
 
+                // add listener
+                on<event::connect>(callback);
+
+                // refresh timer
                 timers::active(this);
 
                 connecting_ = true;
                 writable(true);
 
-                // TODO: need more implementation from here
+                if(socket_type_ == SocketType::IPv4 || socket_type_ == SocketType::IPv6)
+                {
+                    // IPv4
+                    auto x = dynamic_cast<detail::tcp*>(stream_);
+                    assert(x);
 
-                return false;
+                    auto rv = x->connect(ip_or_path, port);
+                    if(rv)
+                    {
+                        stream_->on_complete([=](detail::resval r){
+                            if(destroyed_) return;
+
+                            assert(connecting_);
+                            connecting_ = false;
+
+                            if(!r)
+                            {
+                                connect_queue_cleanup();
+                                destroy(r);
+                            }
+                            else
+                            {
+                                readable(stream_->is_readable());
+                                writable(stream_->is_writable());
+
+                                timers::active(this);
+
+                                if(readable()) stream_->read_start();
+
+                                emit<event::connect>();
+
+                                if(connect_queue_.size())
+                                {
+                                    for(auto c : connect_queue_)
+                                    {
+                                        write(*c.first, c.second);
+                                    }
+                                    connect_queue_cleanup();
+                                }
+
+                                if(flags_ & FLAG_SHUTDOWNQUED)
+                                {
+                                    flags_ &= ~FLAG_SHUTDOWNQUED;
+                                    end();
+                                }
+                            }
+                        });
+                        return true;
+                    }
+                    else
+                    {
+                        destroy(rv);
+                        return false;
+                    }
+                }
+                else if(socket_type_ == SocketType::Pipe)
+                {
+                    // pipe
+                    auto x = dynamic_cast<detail::pipe*>(stream_);
+                    assert(x);
+
+                    x->connect(ip_or_path);
+                    return true;
+                }
+                else
+                {
+                    assert(false);
+                    return false;
+                }
             }
 
         private:
@@ -465,6 +521,8 @@ namespace native
                     //emit<event::close>(failed);
                     emit<event::close>();
                 });
+
+                destroyed_ = true;
             }
 
             void connect_queue_cleanup()
@@ -487,7 +545,7 @@ namespace native
 
                     bytes_read_ += length;
 
-                    if(on_data_callback_) on_data_callback_(buffer, offset, end_pos);
+                    if(on_data_) on_data_(buffer, offset, end_pos);
                 }
                 else
                 {
@@ -502,7 +560,7 @@ namespace native
 
                         if(!allow_half_open_) end();
                         if(haveListener<event::end>()) emit<event::end>();
-                        if(on_end_callback_) on_end_callback_();
+                        if(on_end_) on_end_();
                     }
                     else if(rv.code() == ECONNRESET)
                     {
@@ -533,10 +591,8 @@ namespace native
             std::size_t connect_queue_size_;
             std::vector<std::pair<std::shared_ptr<Buffer>, std::function<void()>>> connect_queue_;
 
-            // ondata: (buffer, offset, end)
-            std::function<void(const char*, std::size_t, std::size_t)> on_data_callback_;
-
-            std::function<void()> on_end_callback_;
+            std::function<void(const char*, std::size_t, std::size_t)> on_data_;
+            std::function<void()> on_end_;
 
             // only for Server class
             struct internal_destroy_event : public util::callback_def<> {};
