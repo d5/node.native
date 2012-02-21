@@ -5,8 +5,7 @@
 wiki/*
 
 echo
-webserver
-file_test
+echo_debug
 
 *.a
 *.o
