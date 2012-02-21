@@ -62,6 +62,7 @@ namespace native
         class Socket : public Stream
         {
             friend class Server;
+            friend Socket* createSocket(std::function<void(Socket*)>, bool);
 
             static const int FLAG_GOT_EOF = 1 << 0;
             static const int FLAG_SHUTDOWN = 1 << 1;
@@ -69,7 +70,7 @@ namespace native
             static const int FLAG_SHUTDOWNQUED = 1 << 3;
 
         protected:
-            Socket(detail::stream* handle, Server* server, bool allowHalfOpen)
+            Socket(detail::stream* handle=nullptr, Server* server=nullptr, bool allowHalfOpen=false)
                 : Stream(handle, true, true)
                 , socket_type_(SocketType::None)
                 , stream_(nullptr)
@@ -832,6 +833,18 @@ namespace native
         Server* createServer(std::function<void(Server*)> callback, bool allowHalfOpen=false)
         {
             auto x = new Server(allowHalfOpen);
+            assert(x);
+
+            process::nextTick([=](){
+                callback(x);
+            });
+
+            return x;
+        }
+
+        Socket* createSocket(std::function<void(Socket*)> callback, bool allowHalfOpen=false)
+        {
+            auto x = new Socket(nullptr, nullptr, allowHalfOpen);
             assert(x);
 
             process::nextTick([=](){
