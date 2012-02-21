@@ -51,7 +51,7 @@ namespace native
                 else return 0;
             }
 
-            error read_start()
+            virtual error read_start()
             {
                 bool res = false;
                 bool ipc_pipe = stream_->type == UV_NAMED_PIPE && reinterpret_cast<uv_pipe_t*>(stream_)->ipc;
@@ -76,13 +76,13 @@ namespace native
                 return res?error():get_last_error();
             }
 
-            error read_stop()
+            virtual error read_stop()
             {
                 bool res = uv_read_stop(stream_) == 0;
                 return res?error():get_last_error();
             }
 
-            error write(const char* data, int offset, int length, stream* send_stream=nullptr)
+            virtual error write(const char* data, int offset, int length, stream* send_stream=nullptr)
             {
                 bool res = false;
                 bool ipc_pipe = stream_->type == UV_NAMED_PIPE && reinterpret_cast<uv_pipe_t*>(stream_)->ipc;
@@ -117,7 +117,7 @@ namespace native
                 return res?error():get_last_error();
             }
 
-            error shutdown()
+            virtual error shutdown()
             {
                 auto req = new uv_shutdown_t;
                 assert(req);

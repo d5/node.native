@@ -13,10 +13,12 @@ namespace native
         public:
             tcp()
                 : stream(reinterpret_cast<uv_stream_t*>(&tcp_))
-                //, tcp_() // This is intentional: POD; if reinitialized here, pointer to this assigned (at handle ctor) to tcp_.data will be lost.
+                , tcp_()
             {
                 int r = uv_tcp_init(uv_default_loop(), &tcp_);
                 assert(r == 0);
+
+                tcp_.data = this;
             }
 
         private:
@@ -24,7 +26,11 @@ namespace native
             {}
 
         public:
-            error get_sock_name(bool& is_ipv4, std::string& ip, int& port)
+            // tcp hides handle::ref() and handle::unref()
+            virtual void ref() {}
+            virtual void unref() {}
+
+            virtual std::shared_ptr<net_addr> get_sock_name()
             {
                 struct sockaddr_storage addr;
                 int addrlen = static_cast<int>(sizeof(addr));
@@ -34,17 +40,51 @@ namespace native
                 {
                     assert(addr.ss_family == AF_INET || addr.ss_family == AF_INET6);
 
-                    is_ipv4 = (addr.ss_family == AF_INET);
-                    if(is_ipv4) return from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), ip, port);
-                    else return from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), ip, port);
+                    auto na = std::shared_ptr<net_addr>(new net_addr);
+                    na->is_ipv4 = (addr.ss_family == AF_INET);
+                    if(na->is_ipv4)
+                    {
+                        error e = from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), na->ip, na->port);
+                        if(!e) return na;
+                    }
+                    else
+                    {
+                        error e = from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), na->ip, na->port);
+                        if(!e) return na;
+                    }
                 }
-                else
-                {
-                    return get_last_error();
-                }
+
+                return nullptr;
             }
 
-            error get_peer_name(bool& is_ipv4, std::string& ip, int& port)
+            virtual std::shared_ptr<net_addr> get_peer_name()
+            {
+                struct sockaddr_storage addr;
+                int addrlen = static_cast<int>(sizeof(addr));
+                bool res = uv_tcp_getsockname(&tcp_, reinterpret_cast<struct sockaddr*>(&addr), &addrlen) == 0;
+
+                if(res)
+                {
+                    assert(addr.ss_family == AF_INET || addr.ss_family == AF_INET6);
+
+                    auto na = std::shared_ptr<net_addr>(new net_addr);
+                    na->is_ipv4 = (addr.ss_family == AF_INET);
+                    if(na->is_ipv4)
+                    {
+                        error e = from_ip4_addr(reinterpret_cast<struct sockaddr_in*>(&addr), na->ip, na->port);
+                        if(!e) return na;
+                    }
+                    else
+                    {
+                        error e = from_ip6_addr(reinterpret_cast<struct sockaddr_in6*>(&addr), na->ip, na->port);
+                        if(!e) return na;
+                    }
+                }
+
+                return nullptr;
+            }
+
+            virtual error get_peer_name(bool& is_ipv4, std::string& ip, int& port)
             {
                 struct sockaddr_storage addr;
                 int addrlen = static_cast<int>(sizeof(addr));
@@ -63,19 +103,20 @@ namespace native
                     return get_last_error();
                 }
             }
-            error set_no_delay(bool enable)
+
+            virtual error set_no_delay(bool enable)
             {
                 bool res = uv_tcp_nodelay(&tcp_, enable?1:0) == 0;
                 return res?error():get_last_error();
             }
 
-            error set_keepalive(bool enable, unsigned int delay)
+            virtual error set_keepalive(bool enable, unsigned int delay)
             {
                 bool res = uv_tcp_keepalive(&tcp_, enable?1:0, delay) == 0;
                 return res?error():get_last_error();
             }
 
-            error bind(const std::string& ip, int port)
+            virtual error bind(const std::string& ip, int port)
             {
                 struct sockaddr_in addr = to_ip4_addr(ip, port);
 
@@ -83,7 +124,7 @@ namespace native
                 return res?error():get_last_error();
             }
 
-            error bind6(const std::string& ip, int port)
+            virtual error bind6(const std::string& ip, int port)
             {
                 struct sockaddr_in6 addr = to_ip6_addr(ip, port);
 
@@ -91,7 +132,7 @@ namespace native
                 return res?error():get_last_error();
             }
 
-            error listen(int backlog, std::function<void(stream*, error)> callback)
+            virtual error listen(int backlog, std::function<void(stream*, error)> callback)
             {
                 callbacks::store(lut(), cid_uv_listen, callback);
                 bool res = uv_listen(reinterpret_cast<uv_stream_t*>(&tcp_), backlog, [](uv_stream_t* handle, int status) {
@@ -118,7 +159,7 @@ namespace native
             }
 
             // TODO: Node.js implementation takes 5 parameter in callback function.
-            error connect(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
+            virtual error connect(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
             {
                 struct sockaddr_in addr = to_ip4_addr(ip, port);
 
@@ -133,7 +174,7 @@ namespace native
             }
 
             // TODO: Node.js implementation takes 5 parameter in callback function.
-            error connect6(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
+            virtual error connect6(const std::string& ip, int port, std::function<void(error, bool, bool)> callback)
             {
                 struct sockaddr_in6 addr = to_ip6_addr(ip, port);
 

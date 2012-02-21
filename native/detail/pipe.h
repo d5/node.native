@@ -16,6 +16,8 @@ namespace native
             {
                 int r = uv_pipe_init(uv_default_loop(), &pipe_, ipc?1:0);
                 assert(r == 0);
+
+                pipe_.data = this;
             }
 
         private:
@@ -23,7 +25,7 @@ namespace native
             {}
 
         public:
-            error bind(const std::string& name)
+            virtual error bind(const std::string& name)
             {
                 bool res = uv_pipe_bind(&pipe_, name.c_str());
 
@@ -52,13 +54,13 @@ namespace native
                 return res?error():get_last_error();
             }
 
-            void open(int fd)
+            virtual void open(int fd)
             {
                 uv_pipe_open(&pipe_, fd);
             }
 
             // TODO: Node.js implementation takes 5 parameter in callback function.
-            void connect(const std::string& name, std::function<void(error, bool, bool)> callback)
+            virtual void connect(const std::string& name, std::function<void(error, bool, bool)> callback)
             {
                 auto req = new uv_connect_t;
                 assert(req);

@@ -316,11 +316,15 @@ namespace native
                         auto x = dynamic_cast<detail::tcp*>(stream_);
                         assert(x);
 
-                        bool b;
-                        x->get_sock_name(b, ip_or_pipe_name, port);
-                        assert(b == true);
+                        auto addr = x->get_sock_name();
+                        if(addr)
+                        {
+                            ip_or_pipe_name = addr->ip;
+                            port = addr->port;
+                            return true;
+                        }
                     }
-                    return true;
+                    return false;
 
                 default:
                     return false;
@@ -352,13 +356,8 @@ namespace native
                     auto x = dynamic_cast<detail::tcp*>(stream_);
                     assert(x);
 
-                    bool is_ipv4;
-                    std::string ip;
-                    int port;
-                    x->get_peer_name(is_ipv4, ip, port);
-                    assert(is_ipv4 == (socket_type_ == SocketType::IPv4));
-
-                    return ip;
+                    auto addr = x->get_peer_name();
+                    if(addr) return addr->ip;
                 }
 
                 return std::string();
@@ -371,13 +370,8 @@ namespace native
                     auto x = dynamic_cast<detail::tcp*>(stream_);
                     assert(x);
 
-                    bool is_ipv4;
-                    std::string ip;
-                    int port;
-                    x->get_peer_name(is_ipv4, ip, port);
-                    assert(is_ipv4 == (socket_type_ == SocketType::IPv4));
-
-                    return port;
+                    auto addr = x->get_peer_name();
+                    if(addr) return addr->port;
                 }
 
                 return 0;
@@ -610,9 +604,13 @@ namespace native
                         auto x = dynamic_cast<detail::tcp*>(stream_);
                         assert(x);
 
-                        bool b;
-                        x->get_sock_name(b, ip_or_pipe_name, port);
-                        assert(b == true);
+                        auto addr = x->get_sock_name();
+                        if(addr)
+                        {
+                            ip_or_pipe_name = addr->ip;
+                            port = addr->port;
+                        }
+                        assert(addr->is_ipv4);
                     }
                     break;
 
@@ -621,9 +619,13 @@ namespace native
                         auto x = dynamic_cast<detail::tcp*>(stream_);
                         assert(x);
 
-                        bool b;
-                        x->get_sock_name(b, ip_or_pipe_name, port);
-                        assert(b == false);
+                        auto addr = x->get_sock_name();
+                        if(addr)
+                        {
+                            ip_or_pipe_name = addr->ip;
+                            port = addr->port;
+                        }
+                        assert(!addr->is_ipv4);
                     }
                     break;
 

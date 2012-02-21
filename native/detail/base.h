@@ -72,6 +72,13 @@ namespace native
             uv_err_t err_;
         };
 
+        struct net_addr
+        {
+            bool is_ipv4;
+            std::string ip;
+            int port;
+        };
+
         error get_last_error() { return error(uv_last_error(uv_default_loop())); }
 
         sockaddr_in to_ip4_addr(const std::string& ip, int port) { return uv_ip4_addr(ip.c_str(), port); }

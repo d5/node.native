@@ -16,7 +16,6 @@ namespace native
                 , unref_(false)
             {
                 assert(handle_);
-                handle_->data = this;
             }
 
             virtual ~handle()
@@ -24,14 +23,14 @@ namespace native
             }
 
         public:
-            void ref()
+            virtual void ref()
             {
                 if(!unref_) return;
                 unref_ = false;
                 uv_ref(uv_default_loop());
             }
 
-            void unref()
+            virtual void unref()
             {
                 if(unref_) return;
                 unref_ = true;
@@ -45,7 +44,7 @@ namespace native
             }
 
             // Note that the handle object itself is deleted in a deferred callback of uv_close() invoked in this function.
-            void close()
+            virtual void close()
             {
                 if(!handle_) return;
 
@@ -56,7 +55,7 @@ namespace native
                 });
 
                 handle_ = nullptr;
-                ref();
+                handle::ref();
 
                 state_change();
             }
