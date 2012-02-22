@@ -717,7 +717,8 @@ namespace native
         {
             friend Server* createServer(std::function<void(Server*)>, bool);
 
-            Server(bool allowHalfOpen)
+        protected:
+            Server(bool allowHalfOpen=false)
                 : EventEmitter()
                 , stream_(nullptr)
                 , connections_(0)
