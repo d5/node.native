@@ -222,9 +222,7 @@ namespace native
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
-                auto ptr = new (decltype(callback))(callback);
-                s->second->add_callback(ptr);
-                return ptr;
+                return s->second.add<typename E::callback_type>(callback);
             }
 
             return nullptr;
@@ -260,9 +258,7 @@ namespace native
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
-                auto ptr = new (decltype(callback))(callback);
-                s->second->add_callback(ptr, true);
-                return ptr;
+                return s->second.add<typename E::callback_type>(callback, true);
             }
 
             return nullptr;
@@ -282,7 +278,7 @@ namespace native
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
-                return s->second->remove_callback(listener);
+                return s->second.remove(listener);
             }
 
             return false;
@@ -300,7 +296,7 @@ namespace native
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
-                s->second->reset();
+                s->second.clear();
                 return true;
             }
 
@@ -321,10 +317,7 @@ namespace native
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
-                auto x = dynamic_cast<detail::sigslot<typename E::callback_type>*>(s->second.get());
-                assert(x);
-
-                x->invoke(std::forward<A>(args)...);
+                s->second.invoke<typename E::callback_type>(std::forward<A>(args)...);
                 return true;
             }
 
@@ -343,7 +336,7 @@ namespace native
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
             {
-                return s->second->callback_count() > 0;
+                return s->second.count() > 0;
             }
 
             return false;
@@ -359,10 +352,7 @@ namespace native
         template<typename E>
         bool registerEvent()
         {
-            auto res = events_.insert(std::make_pair(
-                typeid(E).hash_code(),
-                std::shared_ptr<detail::sigslot_base>(
-                    new detail::sigslot<typename E::callback_type>())));
+            auto res = events_.insert(std::make_pair(typeid(E).hash_code(), detail::event_emitter()));
             if(!res.second)
             {
                 // Two event IDs conflict
@@ -383,7 +373,8 @@ namespace native
         }
 
     private:
-        std::map<int, std::shared_ptr<detail::sigslot_base>> events_;
+        //std::map<int, std::shared_ptr<detail::sigslot_base>> events_;
+        std::map<int, detail::event_emitter> events_;
     };
 }
 

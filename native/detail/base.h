@@ -129,51 +129,50 @@ namespace native
             return resval();
         }
 
-        class sigslot_base
+        class scl_base
         {
         public:
-            sigslot_base() {}
-            virtual ~sigslot_base() {}
+            scl_base() {}
+            virtual ~scl_base() {}
         public:
-            virtual void add_callback(void*, bool once=false) = 0;
-            virtual bool remove_callback(void*) = 0;
-            virtual void reset() = 0;
-            virtual std::size_t callback_count() const = 0;
+            virtual void add(void*, bool once=false) = 0;
+            virtual bool remove(void*) = 0;
+            virtual void clear() = 0;
+            virtual std::size_t count() const = 0;
         };
 
+        // serialized callback list
         template<typename>
-        class sigslot;
+        class scl;
 
         template<typename R, typename ...P>
-        class sigslot<std::function<R(P...)>> : public sigslot_base
+        class scl<std::function<R(P...)>> : public scl_base
         {
         public:
             typedef std::function<R(P...)> callback_type;
             typedef std::shared_ptr<callback_type> callback_ptr;
 
         public:
-            sigslot()
-                : callbacks_()
-            {
-            }
-            virtual ~sigslot()
-            {
-            }
+            scl()
+                : list_()
+            {}
+            virtual ~scl()
+            {}
 
         public:
-            virtual void add_callback(void* callback, bool once=false)
+            virtual void add(void* callback, bool once=false)
             {
                 assert(callback);
 
                 // wrap the callback object with shared_ptr<>.
-                callbacks_.push_back(std::make_pair(callback_ptr(reinterpret_cast<callback_type*>(callback)), once));
+                list_.push_back(std::make_pair(callback_ptr(reinterpret_cast<callback_type*>(callback)), once));
             }
 
-            virtual bool remove_callback(void* callback)
+            virtual bool remove(void* callback)
             {
                 // find the matching callback
-                auto d = callbacks_.end();
-                for(auto it=callbacks_.begin();it!=callbacks_.end();++it)
+                auto d = list_.end();
+                for(auto it=list_.begin();it!=list_.end();++it)
                 {
                     if(reinterpret_cast<void*>(it->first.get()) == callback)
                     {
@@ -183,9 +182,9 @@ namespace native
                 }
 
                 // if found: delete it from the list.
-                if(d != callbacks_.end())
+                if(d != list_.end())
                 {
-                    callbacks_.erase(d);
+                    list_.erase(d);
                     return true;
                 }
 
@@ -193,16 +192,16 @@ namespace native
                 return false;
             }
 
-            virtual void reset()
+            virtual void clear()
             {
                 // delete all callbacks
-                callbacks_.clear();
+                list_.clear();
             }
 
-            virtual std::size_t callback_count() const
+            virtual std::size_t count() const
             {
                 // the number of callbacks
-                return callbacks_.size();
+                return list_.size();
             }
 
             template<typename ...A>
@@ -212,7 +211,7 @@ namespace native
                 std::set<callback_ptr> to_delete;
 
                 // copy callback list: to avoid modification inside the 'for' loop.
-                auto callbacks_copy = callbacks_;
+                auto callbacks_copy = list_;
                 for(auto c : callbacks_copy)
                 {
                     try
@@ -229,55 +228,87 @@ namespace native
                 }
 
                 // remove 'once' callbacks
-                callbacks_.remove_if([&](std::pair<callback_ptr, bool>& it) {
+                list_.remove_if([&](std::pair<callback_ptr, bool>& it) {
                     return to_delete.find(it.first) != to_delete.end();
                 });
             }
 
         private:
-            std::list<std::pair<callback_ptr, bool>> callbacks_;
+            std::list<std::pair<callback_ptr, bool>> list_;
         };
 
-        typedef std::shared_ptr<sigslot_base> callback_object_ptr;
-
-        class callbacks
+        class event_emitter
         {
         public:
-            callbacks(int max_callbacks)
-                : lut_(max_callbacks)
+            event_emitter()
+                : callbacks_()
+            {}
+            ~event_emitter()
+            {}
+
+        public:
+            template<typename T>
+            void* add(T callback, bool once=false)
             {
-            }
-            ~callbacks()
-            {
-            }
+                if(!callbacks_)
+                {
+                    callbacks_.reset(new scl<T>());
+                    assert(callbacks_);
+                }
 
-            template<typename ...A>
-            static void store(void* target, int cid, std::function<void(A...)> callback)
-            {
-                auto self = reinterpret_cast<callbacks*>(target);
-                assert(self);
-
-                auto x = new sigslot<decltype(callback)>();
-
-                self->lut_[cid].reset(x);
-                self->lut_[cid]->add_callback(new decltype(callback)(callback));
-            }
-
-            template<typename F, typename ...A>
-            static void invoke(void* target, int cid, A&&... args)
-            {
-                auto self = reinterpret_cast<callbacks*>(target);
-                assert(self);
-
-                auto f = self->lut_[cid].get();
-                auto x = dynamic_cast<sigslot<F>*>(self->lut_[cid].get());
+                auto x = new T(callback);
                 assert(x);
 
-                x->invoke(std::forward<A>(args)...);
+                callbacks_->add(x, once);
+
+                return reinterpret_cast<void*>(x);
+            }
+
+            template<typename T>
+            static void add(void* target, T callback, bool once=false)
+            {
+                auto self = reinterpret_cast<event_emitter*>(target);
+                assert(self);
+                self->add<T>(callback, once);
+            }
+
+            bool remove(void* ptr)
+            {
+                if(callbacks_) return callbacks_->remove(ptr);
+                return false;
+            }
+
+            template<typename T, typename ...A>
+            void invoke(A&&... args)
+            {
+                auto x = dynamic_cast<scl<T>*>(callbacks_.get());
+                if(x)
+                {
+                    x->invoke(std::forward<A>(args)...);
+                }
+            }
+
+            template<typename T, typename ...A>
+            static void invoke(void* target, A&&... args)
+            {
+                auto self = reinterpret_cast<event_emitter*>(target);
+                assert(self);
+                self->invoke<T>(std::forward<A>(args)...);
+            }
+
+            void clear()
+            {
+                if(callbacks_) callbacks_->clear();
+            }
+
+            std::size_t count() const
+            {
+                if(callbacks_) return callbacks_->count();
+                return 0;
             }
 
         private:
-            std::vector<callback_object_ptr> lut_;
+            std::shared_ptr<scl_base> callbacks_;
         };
     }
 }
