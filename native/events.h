@@ -217,7 +217,7 @@ namespace native
          *                      If EventEmitter fails to add the listener, it returns nullptr.
          */
         template<typename E>
-        listener_t addListener(typename E::callback_type callback)
+        listener_t addListener(const typename E::callback_type& callback)
         {
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())
@@ -238,7 +238,7 @@ namespace native
          *                      If EventEmitter fails to add the listener, it returns nullptr.
          */
         template<typename E>
-        listener_t on(typename E::callback_type callback)
+        listener_t on(const typename E::callback_type& callback)
         {
             return addListener<E>(callback);
         }
@@ -253,7 +253,7 @@ namespace native
          *                      If EventEmitter fails to add the listener, it returns nullptr.
          */
         template<typename E>
-        listener_t once(typename E::callback_type callback)
+        listener_t once(const typename E::callback_type& callback)
         {
             auto s = events_.find(typeid(E).hash_code());
             if(s != events_.end())

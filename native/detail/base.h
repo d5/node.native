@@ -248,7 +248,7 @@ namespace native
 
         public:
             template<typename T>
-            void* add(T callback, bool once=false)
+            void* add(const T& callback, bool once=false)
             {
                 if(!callbacks_)
                 {
@@ -265,7 +265,7 @@ namespace native
             }
 
             template<typename T>
-            static void add(void* target, T callback, bool once=false)
+            static void add(void* target, const T& callback, bool once=false)
             {
                 auto self = reinterpret_cast<event_emitter*>(target);
                 assert(self);
