@@ -412,6 +412,124 @@ namespace native
 
         // TODO: implement fs_truncate() function.
         resval fs_truncate() { return resval(); }
+
+        typedef std::function<void(const char*, std::size_t, resval)> rte_callback_type;
+
+        class rte_context
+        {
+        public:
+            rte_context(int fd, std::size_t buflen, rte_callback_type callback)
+                : fd_(fd)
+                , req_()
+                , buf_(buflen)
+                , result_()
+                , callback_(callback)
+            {
+                req_.data = this;
+            }
+
+            ~rte_context()
+            {}
+
+            resval read(bool invoke_error)
+            {
+                resval rv;
+                if(uv_fs_read(uv_default_loop(), &req_, fd_, &buf_[0], buf_.size(), result_.size(), rte_cb) < 0)
+                {
+                    rv = get_last_error();
+                    if(invoke_error)
+                    {
+                        end_error(rv);
+                    }
+                    else
+                    {
+                        uv_fs_req_cleanup(&req_);
+                        delete this;
+                    }
+                }
+                return rv;
+            }
+
+            resval read_more(std::size_t length)
+            {
+                result_.insert(result_.end(), buf_.begin(), buf_.begin()+length);
+
+                uv_fs_req_cleanup(&req_);
+
+                return read(true);
+            }
+
+            void end_error(resval e)
+            {
+                try
+                {
+                    callback_(nullptr, 0, e);
+                }
+                catch(...)
+                {
+                    // TODO: handle exception
+                }
+
+                uv_fs_req_cleanup(&req_);
+                delete this;
+            }
+
+            void end()
+            {
+                try
+                {
+                    callback_(&result_[0], result_.size(), resval());
+                }
+                catch(...)
+                {
+                    // TODO: handle exception
+                }
+
+                uv_fs_req_cleanup(&req_);
+                delete this;
+            }
+
+        private:
+            static void rte_cb(uv_fs_t* req)
+            {
+                assert(req);
+                assert(req->fs_type == UV_FS_READ);
+
+                auto self = reinterpret_cast<rte_context*>(req->data);
+                assert(self);
+
+                if(req->errorno)
+                {
+                    // error
+                    self->end_error(resval(static_cast<uv_err_code>(req->errorno)));
+                }
+                else if(req->result == 0)
+                {
+                    // EOF
+                    self->end();
+                }
+                else
+                {
+                    // continue reading
+                    self->read_more(req->result);
+                }
+            }
+
+        private:
+            int fd_;
+            uv_fs_t req_;
+            std::vector<char> buf_;
+            std::vector<char> result_;
+            rte_callback_type callback_;
+        };
+
+        // read all data asynchronously
+        resval fs_read_to_end(int fd, rte_callback_type callback)
+        {
+            auto ctx = new rte_context(fd, 512, callback);
+            assert(ctx);
+            return ctx->read(false);
+        }
     }
 }
 
