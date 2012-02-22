@@ -132,33 +132,19 @@ namespace native
         class callback_object_base
         {
         public:
-            callback_object_base(void* data)
-                : data_(data)
-            {
-            }
-            virtual ~callback_object_base()
-            {
-            }
-
-            void* get_data() { return data_; }
-
-        private:
-            void* data_;
+            virtual ~callback_object_base() {}
         };
 
         template<typename callback_t>
         class callback_object : public callback_object_base
         {
         public:
-            callback_object(const callback_t& callback, void* data=nullptr)
-                : callback_object_base(data)
-                , callback_(callback)
-            {
-            }
+            callback_object(const callback_t& callback)
+                : callback_(callback)
+            {}
 
             virtual ~callback_object()
-            {
-            }
+            {}
 
         public:
             template<typename ...A>
@@ -189,15 +175,9 @@ namespace native
             }
 
             template<typename callback_t>
-            static void store(void* target, int cid, const callback_t& callback, void* data=nullptr)
+            static void store(void* target, int cid, const callback_t& callback)
             {
-                reinterpret_cast<callbacks*>(target)->lut_[cid] = callback_object_ptr(new callback_object<callback_t>(callback, data));
-            }
-
-            template<typename callback_t>
-            static void* get_data(void* target, int cid)
-            {
-                return reinterpret_cast<callbacks*>(target)->lut_[cid]->get_data();
+                reinterpret_cast<callbacks*>(target)->lut_[cid] = callback_object_ptr(new callback_object<callback_t>(callback));
             }
 
             template<typename callback_t, typename ...A>
@@ -322,10 +302,17 @@ namespace native
                 auto callbacks_copy = callbacks_;
                 for(auto c : callbacks_copy)
                 {
-                    // execute the callback
-                    if(*c.first) (*c.first)(std::forward<A>(args)...);
-                    // if it's marked as 'once': add to delete list.
-                    if(c.second) to_delete.insert(c.first);
+                    try
+                    {
+                        // execute the callback
+                        if(*c.first) (*c.first)(std::forward<A>(args)...);
+                        // if it's marked as 'once': add to delete list.
+                        if(c.second) to_delete.insert(c.first);
+                    }
+                    catch(...)
+                    {
+                        // TODO: handle exception
+                    }
                 }
 
                 // remove 'once' callbacks
