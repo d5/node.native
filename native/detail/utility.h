@@ -1,5 +1,5 @@
-#ifndef __UTILITY_H__
-#define __UTILITY_H__
+#ifndef __DETAIL_UTILITY_H__
+#define __DETAIL_UTILITY_H__
 
 #include "base.h"
 #include <tuple>
@@ -98,6 +98,57 @@ namespace native
         struct tuple_index_r<std::tuple<>, C, I>
         {};
 
+        namespace text
+        {
+            void lower(std::string& str)
+            {
+                std::for_each(str.begin(), str.end(), [](char& c){ c = tolower(c); });
+            }
+
+            void upper(std::string& str)
+            {
+                std::for_each(str.begin(), str.end(), [](char& c){ c = toupper(c); });
+            }
+
+            std::string to_lower(const std::string& str)
+            {
+                std::string res(str);
+                std::for_each(res.begin(), res.end(), [](char& c){ c = tolower(c); });
+                return res;
+            }
+
+            std::string to_upper(const std::string& str)
+            {
+                std::string res(str);
+                std::for_each(res.begin(), res.end(), [](char& c){ c = toupper(c); });
+                return res;
+            }
+
+            struct ci_less : std::binary_function<std::string, std::string, bool>
+            {
+                struct nocase_compare : public std::binary_function<unsigned char, unsigned char, bool>
+                {
+                    bool operator()(const unsigned char& c1, const unsigned char& c2) const
+                    {
+                        return tolower(c1) < tolower(c2);
+                    }
+                };
+
+                bool operator()(const std::string & s1, const std::string & s2) const
+                {
+                    return std::lexicographical_compare(s1.begin(), s1.end(), // source range
+                        s2.begin(), s2.end(), // dest range
+                        nocase_compare()); // comparison
+                }
+            };
+
+            bool compare_no_case(const std::string& s1, const std::string& s2)
+            {
+                // TODO: need optimization
+                return to_lower(s1).compare(to_lower(s2)) == 0;
+            }
+        }
+
         /**
          *  Gets the first index of type C in the tuple T.
          */
@@ -111,51 +162,52 @@ namespace native
             typedef std::function<void(A...)> callback_type;
         };
 
-        class dict
+        template<typename C=std::less<std::string>>
+        class dict_base
         {
-            typedef std::map<std::string, std::string> map_type;
-            typedef map_type::iterator iterator;
-            typedef map_type::const_iterator const_iterator;
-            typedef map_type::reverse_iterator reverse_iterator;
-            typedef map_type::const_reverse_iterator const_reverse_iterator;
+            typedef std::map<std::string, std::string, C> map_type;
+            typedef typename map_type::iterator iterator;
+            typedef typename map_type::const_iterator const_iterator;
+            typedef typename map_type::reverse_iterator reverse_iterator;
+            typedef typename map_type::const_reverse_iterator const_reverse_iterator;
 
         public:
-            dict()
+            dict_base()
                 : map_()
             {}
 
-            dict(const map_type& map)
+            dict_base(const map_type& map)
                 : map_(map)
             {}
 
-            dict(const dict& c)
+            dict_base(const dict_base& c)
                 : map_(c.map_)
             {}
 
-            dict(dict&& c)
+            dict_base(dict_base&& c)
                 : map_(std::move(c.map_))
             {}
 
-            dict(std::initializer_list<map_type::value_type> map)
+            dict_base(std::initializer_list<typename map_type::value_type> map)
                 : map_(map)
             {}
 
-            virtual ~dict()
+            virtual ~dict_base()
             {}
 
-            dict& operator =(const dict& c)
+            dict_base& operator =(const dict_base& c)
             {
                 map_ = c.map_;
                 return *this;
             }
 
-            dict& operator =(dict&& c)
+            dict_base& operator =(dict_base&& c)
             {
                 map_ = std::move(c.map_);
                 return *this;
             }
 
-            dict& operator =(std::initializer_list<map_type::value_type> map)
+            dict_base& operator =(std::initializer_list<typename map_type::value_type> map)
             {
                 map_ = map;
                 return *this;
@@ -195,13 +247,24 @@ namespace native
                 return value.compare(it->second) == 0;
             }
 
-            // TODO: implement options::compare_no_case() function.
-            bool compare_no_case(const std::string& name, const std::string& value) const;
+            bool compare_no_case(const std::string& name, const std::string& value) const
+            {
+                auto it = map_.find(name);
+                if(it == map_.end()) return false;
+                return text::compare_no_case(value, it->second);
+            }
 
             bool has(const std::string& name) const
             {
                 return map_.count(name) > 0;
             }
+
+            bool remove(const std::string& name)
+            {
+                return map_.erase(name) > 0;
+            }
+
+            std::size_t size() const { return map_.size(); }
 
             iterator begin() { return map_.begin(); }
             const_iterator begin() const { return map_.begin(); }
@@ -219,6 +282,9 @@ namespace native
         private:
             map_type map_;
         };
+
+        typedef dict_base<> dict;
+        typedef dict_base<text::ci_less> idict;
     }
 }
 

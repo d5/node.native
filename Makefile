@@ -8,15 +8,21 @@ else
 	RTLIB=-lrt
 endif
 
-all: native.a echo
+all: native.a echo webserver
 
-debug: echo_debug
+debug: echo_debug webserver_debug
 
 echo: native.a echo.cpp 
 	$(CXX) $(CXXFLAGS) -o echo echo.cpp native.a $(RTLIB) -lm -lpthread
 	
+webserver: native.a webserver.cpp 
+	$(CXX) $(CXXFLAGS) -o webserver webserver.cpp native.a $(RTLIB) -lm -lpthread	
+	
 echo_debug: echo.cpp native.h $(wildcard native/*.h) $(wildcard native/detail/*.h) ext/libuv/uv.a ext/http-parser/http_parser.o
 	$(CXX) $(CXXFLAGS_DEBUG) -o echo_debug echo.cpp ext/libuv/uv.a ext/http-parser/http_parser.o $(RTLIB) -lm -lpthread	
+	
+webserver_debug: webserver.cpp native.h $(wildcard native/*.h) $(wildcard native/detail/*.h) ext/libuv/uv.a ext/http-parser/http_parser.o
+	$(CXX) $(CXXFLAGS_DEBUG) -o webserver_debug webserver.cpp ext/libuv/uv.a ext/http-parser/http_parser.o $(RTLIB) -lm -lpthread
 
 native.a: ext/libuv/uv.a ext/http-parser/http_parser.o native.o
 	mkdir -p objs
@@ -45,4 +51,6 @@ clean:
 	rm -f native.a
 	rm -f echo
 	rm -f echo_debug
+	rm -f webserver
+	rm -f webserver_debug
 	rm -rf objs

@@ -11,8 +11,8 @@
 
 #include "native/base.h"
 #include "native/detail.h"
-#include "native/utility.h"
 #include "native/net.h"
+#include "native/http.h"
 
 /**
  *  All types of node.native are defined under native namespace.

@@ -575,6 +575,9 @@ namespace native
              */
             std::size_t bytesRead() const { return bytes_read_; }
 
+            detail::stream* stream() { return stream_; }
+            const detail::stream* stream() const { return stream_; }
+
         private:
             void init_socket(detail::stream* stream)
             {

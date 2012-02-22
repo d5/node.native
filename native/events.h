@@ -2,7 +2,6 @@
 #define __EVENTS_H__
 
 #include "base.h"
-#include "utility.h"
 
 namespace native
 {

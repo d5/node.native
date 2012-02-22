@@ -1,6 +1,8 @@
 #ifndef __DETAIL_H__
 #define __DETAIL_H__
 
+#include "detail/base.h"
+#include "detail/utility.h"
 #include "detail/fs.h"
 #include "detail/handle.h"
 #include "detail/http.h"
