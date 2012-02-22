@@ -7,12 +7,11 @@ namespace native
 {
     namespace detail
     {
-        class handle : public object
+        class handle
         {
         protected:
             handle(uv_handle_t* handle)
-                : object(cid_max)
-                , handle_(handle)
+                : handle_(handle)
                 , unref_(false)
             {
                 assert(handle_);

@@ -118,18 +118,20 @@ namespace native
             headers_type headers_;
         };
 
-        class http_parser_obj : public object
+        typedef std::function<void(const http_parse_result*, const char*)> http_parser_callback_type;
+
+        class http_parser_obj
         {
-            friend bool parse_http_request(stream&, std::function<void(const http_parse_result*, const char*)>);
+            friend bool parse_http_request(stream&, http_parser_callback_type callback);
 
         private:
             http_parser_obj()
-                : object(1)
-                , parser_()
+                : parser_()
                 , was_header_value_(true)
                 , last_header_field_()
                 , last_header_value_()
                 , settings_()
+                , callback_()
             {
             }
 
@@ -146,6 +148,8 @@ namespace native
             std::string last_header_value_;
 
             http_parse_result result_;
+
+            http_parser_callback_type callback_;
         };
 
         /**
@@ -161,13 +165,12 @@ namespace native
          *
          *      Note that this function is not non-blocking, meaning the callback function is invoked synchronously.
          */
-        bool parse_http_request(stream& input, std::function<void(const http_parse_result*, const char*)> callback)
+        bool parse_http_request(stream& input, http_parser_callback_type callback)
         {
             http_parser_obj obj;
             http_parser_init(&obj.parser_, HTTP_REQUEST);
             obj.parser_.data = &obj;
-
-            callbacks::store(obj.lut(), 0, callback);
+            obj.callback_ = callback;
 
             obj.settings_.on_url = [](http_parser* parser, const char *at, size_t len) {
                 auto obj = reinterpret_cast<http_parser_obj*>(parser->data);
@@ -181,7 +184,7 @@ namespace native
                 }
                 catch(int e)
                 {
-                    callbacks::invoke<decltype(callback)>(obj->lut(), 0, nullptr, "Failed to parser URL in the request.");
+                    if(obj->callback_) obj->callback_(nullptr, "Failed to parser URL in the request.");
                     return 1;
                 }
             };
@@ -245,7 +248,7 @@ namespace native
                 assert(obj);
 
                 // invoke callback
-                callbacks::invoke<decltype(callback)>(obj->lut(), 0, &obj->result_, nullptr);
+                if(obj->callback_) obj->callback_(&obj->result_, nullptr);
                 return 0;
             };
 

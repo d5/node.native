@@ -129,93 +129,6 @@ namespace native
             return resval();
         }
 
-        class callback_object_base
-        {
-        public:
-            virtual ~callback_object_base() {}
-        };
-
-        template<typename callback_t>
-        class callback_object : public callback_object_base
-        {
-        public:
-            callback_object(const callback_t& callback)
-                : callback_(callback)
-            {}
-
-            virtual ~callback_object()
-            {}
-
-        public:
-            template<typename ...A>
-            typename std::result_of<callback_t(A...)>::type invoke(A&& ... args)
-            {
-                if(callback_)
-                {
-                    // TODO: isolate an exception caught in the callback.
-                    return callback_(std::forward<A>(args)...);
-                }
-            }
-
-        private:
-            callback_t callback_;
-        };
-
-        typedef std::shared_ptr<callback_object_base> callback_object_ptr;
-
-        class callbacks
-        {
-        public:
-            callbacks(int max_callbacks)
-                : lut_(max_callbacks)
-            {
-            }
-            ~callbacks()
-            {
-            }
-
-            template<typename callback_t>
-            static void store(void* target, int cid, const callback_t& callback)
-            {
-                reinterpret_cast<callbacks*>(target)->lut_[cid] = callback_object_ptr(new callback_object<callback_t>(callback));
-            }
-
-            template<typename callback_t, typename ...A>
-            static typename std::result_of<callback_t(A...)>::type invoke(void* target, int cid, A&& ... args)
-            {
-                auto x = dynamic_cast<callback_object<callback_t>*>(reinterpret_cast<callbacks*>(target)->lut_[cid].get());
-                assert(x);
-                return x->invoke(std::forward<A>(args)...);
-            }
-
-        private:
-            std::vector<callback_object_ptr> lut_;
-        };
-
-        class object
-        {
-        public:
-           object(int max_cid)
-               : lut_(new callbacks(max_cid))
-           {}
-
-           virtual ~object()
-           {
-               // TODO: make sure that lut_ is deleted properly and exactly once.
-               if(lut_)
-               {
-                   delete lut_;
-                   lut_ = nullptr;
-               }
-           }
-
-        protected:
-           callbacks* lut() { return lut_; }
-
-        private:
-           callbacks* lut_;
-        };
-
         class sigslot_base
         {
         public:
@@ -323,6 +236,48 @@ namespace native
 
         private:
             std::list<std::pair<callback_ptr, bool>> callbacks_;
+        };
+
+        typedef std::shared_ptr<sigslot_base> callback_object_ptr;
+
+        class callbacks
+        {
+        public:
+            callbacks(int max_callbacks)
+                : lut_(max_callbacks)
+            {
+            }
+            ~callbacks()
+            {
+            }
+
+            template<typename ...A>
+            static void store(void* target, int cid, std::function<void(A...)> callback)
+            {
+                auto self = reinterpret_cast<callbacks*>(target);
+                assert(self);
+
+                auto x = new sigslot<decltype(callback)>();
+
+                self->lut_[cid].reset(x);
+                self->lut_[cid]->add_callback(new decltype(callback)(callback));
+            }
+
+            template<typename F, typename ...A>
+            static void invoke(void* target, int cid, A&&... args)
+            {
+                auto self = reinterpret_cast<callbacks*>(target);
+                assert(self);
+
+                auto f = self->lut_[cid].get();
+                auto x = dynamic_cast<sigslot<F>*>(self->lut_[cid].get());
+                assert(x);
+
+                x->invoke(std::forward<A>(args)...);
+            }
+
+        private:
+            std::vector<callback_object_ptr> lut_;
         };
     }
 }

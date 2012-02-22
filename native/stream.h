@@ -71,11 +71,10 @@ namespace native
         void readable(bool b) { readable_ = b; }
 
     private:
-        struct pipe_context : public detail::object
+        struct pipe_context
         {
             pipe_context(Stream* source, Stream* destination, const util::dict& options)
-                : detail::object(3)
-                , source_(source)
+                : source_(source)
                 , destination_(destination)
                 , did_on_end_(false)
                 , pipe_count_(0)
