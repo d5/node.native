@@ -162,52 +162,49 @@ namespace native
             typedef std::function<void(A...)> callback_type;
         };
 
-        template<typename C=std::less<std::string>>
-        class dict_base
+        class dict
         {
-            typedef std::map<std::string, std::string, C> map_type;
+            typedef std::unordered_map<std::string, std::string> map_type;
             typedef typename map_type::iterator iterator;
             typedef typename map_type::const_iterator const_iterator;
-            typedef typename map_type::reverse_iterator reverse_iterator;
-            typedef typename map_type::const_reverse_iterator const_reverse_iterator;
 
         public:
-            dict_base()
+            dict()
                 : map_()
             {}
 
-            dict_base(const map_type& map)
+            dict(const map_type& map)
                 : map_(map)
             {}
 
-            dict_base(const dict_base& c)
+            dict(const dict& c)
                 : map_(c.map_)
             {}
 
-            dict_base(dict_base&& c)
+            dict(dict&& c)
                 : map_(std::move(c.map_))
             {}
 
-            dict_base(std::initializer_list<typename map_type::value_type> map)
+            dict(std::initializer_list<map_type::value_type> map)
                 : map_(map)
             {}
 
-            virtual ~dict_base()
+            virtual ~dict()
             {}
 
-            dict_base& operator =(const dict_base& c)
+            dict& operator =(const dict& c)
             {
                 map_ = c.map_;
                 return *this;
             }
 
-            dict_base& operator =(dict_base&& c)
+            dict& operator =(dict&& c)
             {
                 map_ = std::move(c.map_);
                 return *this;
             }
 
-            dict_base& operator =(std::initializer_list<typename map_type::value_type> map)
+            dict& operator =(std::initializer_list<map_type::value_type> map)
             {
                 map_ = map;
                 return *this;
@@ -217,7 +214,7 @@ namespace native
             {
                 auto it = map_.find(name);
                 if(it != map_.end()) return it->second;
-                else return default_value;
+                return default_value;
             }
 
             bool get(const std::string& name, std::string& value) const
@@ -270,21 +267,12 @@ namespace native
             const_iterator begin() const { return map_.begin(); }
             iterator end() { return map_.end(); }
             const_iterator end() const { return map_.end(); }
-            reverse_iterator rbegin() { return map_.rbegin(); }
-            const_reverse_iterator rbegin() const { return map_.rbegin(); }
-            reverse_iterator rend() { return map_.rend(); }
-            const_reverse_iterator rend() const { return map_.rend(); }
             const_iterator cbegin() const { return map_.cbegin(); }
             const_iterator cend() const { return map_.cend(); }
-            const_reverse_iterator crbegin() const { return map_.crbegin(); }
-            const_reverse_iterator crend() const { return map_.crend(); }
 
         private:
             map_type map_;
         };
-
-        typedef dict_base<> dict;
-        typedef dict_base<text::ci_less> idict;
     }
 }
 
