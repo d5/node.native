@@ -39,7 +39,6 @@ namespace native
                 : EventEmitter()
                 , socket_(socket)
                 , req_info_(*parse_result)
-                , headers_()
                 , trailers_()
             {
                 assert(socket_);
@@ -53,11 +52,18 @@ namespace native
             {}
 
         public:
-            std::string method() const { return ""; }
-            std::string url() const { return ""; }
-            const headers_type& headers() const { return headers_; }
+            const std::string& schema() const { return req_info_.schema(); }
+            const std::string& host() const { return req_info_.host(); }
+            int port() const { return req_info_.port(); }
+            const std::string& path() const { return req_info_.path(); }
+            const std::string& query() const { return req_info_.query(); }
+            const std::string& fragment() const { return req_info_.fragment(); }
+            const headers_type& headers() const { return req_info_.headers(); }
+            const std::string& method() const { return req_info_.method(); }
+            const std::string& http_version() const { return req_info_.http_version(); }
+            bool upgrade() const { return req_info_.upgrade(); }
+
             const headers_type& trailers() const { return trailers_; } // only populated after 'end' event
-            std::string httpVersion() const { return ""; }
 
             //void setEncoding(const std::string& encoding);
             //void pause();
@@ -68,7 +74,6 @@ namespace native
         private:
             net::Socket* socket_;
             detail::http_parse_result req_info_;
-            headers_type headers_;
             headers_type trailers_;
         };
 
@@ -82,6 +87,8 @@ namespace native
                 , socket_(socket)
                 , headers_()
             {
+                assert(socket_);
+
                 registerEvent<event::close>();
             }
 
@@ -100,9 +107,17 @@ namespace native
             bool getHeader(const std::string& name, std::string& value) { return false; }
             bool removeHeader(const std::string& name) { return false; }
 
-            //void write(const Buffer& data) {}
+            void write(const Buffer& data)
+            {
+                socket_->write(data);
+            }
+
             void addTrailers(const headers_type& headers) {}
-            //void end(const Buffer& data) {}
+
+            void end(const Buffer& data)
+            {
+                socket_->end(data);
+            }
 
         private:
             net::Socket* socket_;
@@ -134,13 +149,13 @@ namespace native
                         {
                             assert(parse_result);
 
-                            //auto server_req = new ServerRequest(socket, parse_result);
-                            //assert(server_req);
+                            auto server_req = new ServerRequest(socket, parse_result);
+                            assert(server_req);
 
-                            //auto server_res = new ServerResponse(socket);
-                            //assert(server_res);
+                            auto server_res = new ServerResponse(socket);
+                            assert(server_res);
 
-                            //emit<event::request>(server_req, server_req);
+                            emit<event::request>(server_req, server_res);
                         }
                     });
                 });
