@@ -134,18 +134,6 @@ namespace native
                         {
                             assert(parse_result);
 
-                            printf("schema: %s\n", parse_result->schema().c_str());
-                            printf("host: %s\n", parse_result->host().c_str());
-                            printf("port: %d\n", parse_result->port());
-                            printf("path: %s\n", parse_result->path().c_str());
-                            printf("method: %s\n", parse_result->method().c_str());
-                            printf("version: %s\n", parse_result->http_version().c_str());
-
-                            for(auto x : parse_result->headers())
-                            {
-                                printf("%s: %s\n", x.first.c_str(), x.second.c_str());
-                            }
-
                             //auto server_req = new ServerRequest(socket, parse_result);
                             //assert(server_req);
 

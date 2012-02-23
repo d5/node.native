@@ -142,6 +142,7 @@ namespace native
             const headers_type& headers() const { return headers_; }
             const std::string& method() const { return method_; }
             const std::string& http_version() const { return http_version_; }
+            bool upgrade() const { return upgrade_; }
 
         private:
             std::string schema_;
@@ -246,7 +247,7 @@ namespace native
                     auto self = reinterpret_cast<http_parser_context*>(parser->data);
                     assert(self);
 
-                    // host and port info from headers
+                    // get host and port info from header entry "Host"
                     std::string host("");
                     int port = 0;
                     auto x = self->result_.headers_.find("host");
@@ -265,31 +266,26 @@ namespace native
                         }
                     }
 
+                    // url info
                     self->result_.schema_ = self->url_.has_schema()?self->url_.schema():"HTTP";
                     self->result_.path_ = self->url_.has_path()?self->url_.path():"/";
                     self->result_.query_ = self->url_.has_query()?self->url_.query():"";
                     self->result_.fragment_ = self->url_.has_fragment()?self->url_.fragment():"";
                     self->result_.host_ = self->url_.has_host()?self->url_.host():host;
 
-                    if(self->url_.has_port())
-                    {
-                        printf("1: %d\n", self->url_.port());
-                        self->result_.port_ = self->url_.port();
-                    }
-                    else if(port != 0)
-                    {
-                        printf("2: %d\n", port);
-                        self->result_.port_ = port;
-                    }
+                    // determine port number
+                    if(self->url_.has_port()) { self->result_.port_ = self->url_.port(); }
+                    else if(port != 0) { self->result_.port_ = port; }
                     else
                     {
-                        printf("3:\n");
                         if(util::text::compare_no_case(self->result_.schema_, "HTTPS")) self->result_.port_ = 443;
                         else self->result_.port_ = 80;
                     }
 
+                    // HTTP method
                     self->result_.method_ = http_method_str(static_cast<http_method>(parser->method));
 
+                    // HTTP version
                     std::stringstream version;
                     version << parser->http_major << "." << parser->http_minor;
                     self->result_.http_version_ = version.str();
