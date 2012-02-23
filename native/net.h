@@ -664,7 +664,7 @@ namespace native
                 }
                 else
                 {
-                    if(rv.code() == UV_EOF)
+                    if(rv.code() == error::eof)
                     {
                         readable(false);
 

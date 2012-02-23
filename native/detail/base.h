@@ -20,6 +20,72 @@
 
 namespace native
 {
+    namespace error
+    {
+        enum error_code_t
+        {
+            unknown = UV_UNKNOWN,
+            ok = UV_OK,
+            eof = UV_EOF,
+            eaddrinfo = UV_EADDRINFO,
+            eacces = UV_EACCES,
+            eagain = UV_EAGAIN,
+            eaddrinuse = UV_EADDRINUSE,
+            eaddrnotavail = UV_EADDRNOTAVAIL,
+            eafnosupport = UV_EAFNOSUPPORT,
+            ealready = UV_EALREADY,
+            ebadf = UV_EBADF,
+            ebusy = UV_EBUSY,
+            econnaborted = UV_ECONNABORTED,
+            econnrefused = UV_ECONNREFUSED,
+            econnreset = UV_ECONNRESET,
+            edestaddrreq = UV_EDESTADDRREQ,
+            efault = UV_EFAULT,
+            ehostunreach = UV_EHOSTUNREACH,
+            eintr = UV_EINTR,
+            einval = UV_EINVAL,
+            eisconn = UV_EISCONN,
+            emfile = UV_EMFILE,
+            emsgsize = UV_EMSGSIZE,
+            enetdown = UV_ENETDOWN,
+            enetunreach = UV_ENETUNREACH,
+            enfile = UV_ENFILE,
+            enobufs = UV_ENOBUFS,
+            enomem = UV_ENOMEM,
+            enotdir = UV_ENOTDIR,
+            eisdir = UV_EISDIR,
+            enonet = UV_ENONET,
+            enotconn = UV_ENOTCONN,
+            enotsock = UV_ENOTSOCK,
+            enotsup = UV_ENOTSUP,
+            enoent = UV_ENOENT,
+            enosys = UV_ENOSYS,
+            epipe = UV_EPIPE,
+            eproto = UV_EPROTO,
+            eprotonosupport = UV_EPROTONOSUPPORT,
+            eprototype = UV_EPROTOTYPE,
+            etimedout = UV_ETIMEDOUT,
+            echarset = UV_ECHARSET,
+            eaifamnosupport = UV_EAIFAMNOSUPPORT,
+            eaiservice = UV_EAISERVICE,
+            eaisocktype = UV_EAISOCKTYPE,
+            eshutdown = UV_ESHUTDOWN,
+            eexist = UV_EEXIST,
+            esrch = UV_ESRCH,
+            enametoolong = UV_ENAMETOOLONG,
+            eperm = UV_EPERM,
+            eloop = UV_ELOOP,
+            exdev = UV_EXDEV,
+            __libuv_max = UV_MAX_ERRORS,
+
+            http_parser_fail,
+            http_parser_url_fail,
+            http_parser_incomplete,
+
+            reserved,
+        };
+    }
+
     namespace detail
     {
         enum cid
@@ -61,21 +127,38 @@ namespace native
         class resval
         {
         public:
-            resval() : err_() {} // default: no error
-            explicit resval(uv_err_t e) : err_(e) {}
-            explicit resval(uv_err_code code) : err_ {code, 0} {}
-            explicit resval(std::nullptr_t) : err_() {}
-            resval(const resval& c) : err_(c.err_) {}
-            resval(resval&& c) : err_(std::move(c.err_)) {}
+            resval(int error_code=error::ok) : error_code_(error_code) {}
+            explicit resval(uv_err_t e) : error_code_(e.code) {}
+            explicit resval(uv_err_code code) : error_code_(code) {}
+            resval(const resval& c) : error_code_(c.error_code_) {}
+            resval(resval&& c) : error_code_(c.error_code_) {}
             ~resval() {}
 
-            operator bool() { return err_.code == UV_OK; }
+            operator bool() const { return error_code_ == error::ok; }
+            bool operator !() const { return  error_code_ != error::ok; }
 
-            uv_err_code code() const { return err_.code; }
-            const char* name() const { return uv_err_name(err_); }
-            const char* str() const { return uv_strerror(err_); }
+            int code() const
+            {
+                return error_code_;
+            }
+
+            const char* str() const
+            {
+                if(error_code_ < static_cast<int>(error::__libuv_max))
+                {
+                    return uv_strerror(uv_err_t{static_cast<uv_err_code>(error_code_), 0});
+                }
+
+                switch(error_code_)
+                {
+                case error::http_parser_fail: return "Failed to parser HTTP request or response.";
+                case error::http_parser_url_fail: return "Failed to parse URL elements in HTTP request or response.";
+                case error::http_parser_incomplete: return "HTTP request or response message is not complete.";
+                default: return nullptr;
+                }
+            }
         private:
-            uv_err_t err_;
+            int error_code_;
         };
 
         struct net_addr
