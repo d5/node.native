@@ -352,6 +352,7 @@ namespace native
                     if(ctx->feed_data(data, offset, length, callback))
                     {
                         // parse end
+                        input->read_stop();
                         delete ctx;
                     }
                     else
