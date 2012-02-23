@@ -12,6 +12,7 @@
 #include <list>
 #include <set>
 #include <tuple>
+#include <iostream>
 #include <arpa/inet.h>
 #include <uv.h>
 #include <http_parser.h>

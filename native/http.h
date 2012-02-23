@@ -77,9 +77,9 @@ namespace native
             bool getHeader(const std::string& name, std::string& value) { return false; }
             bool removeHeader(const std::string& name);
 
-            void write(const Buffer& data) {}
+            //void write(const Buffer& data) {}
             void addTrailers(const util::dict& headers) {}
-            void end(const Buffer& data) {}
+            //void end(const Buffer& data) {}
         };
 
         class Server : public net::Server
