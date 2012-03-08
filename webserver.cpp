@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
             });
             server->on<event::request>([](http::ServerRequest* req, http::ServerResponse* res){
                 std::cout << "request" << std::endl;
+                res->end(Buffer(std::string("path: ")+req->path()+"\r\n"));
             });
             server->on<event::error>([](const Exception& e){
                 std::cout << "error: " << e.message() << std::endl;

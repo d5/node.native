@@ -8,6 +8,6 @@ Current port is based on the following node version:
 
 ### Dependencies
 
-- [libuv](https://github.com/joyent/libuv): https://github.com/joyent/libuv/commit/75ab1ba77467cab272ee8302ca4e9d1be306d2f6
-- [http-parser](https://github.com/joyent/http-parser): https://github.com/joyent/http-parser/commit/62110efe7ae268d6e6435ac0e7e7690c0e998655
+- [libuv](https://github.com/joyent/libuv): https://github.com/joyent/libuv/commit/2ef5798c6f0513914bf83aa910b2535d9a1d5948
+- [http-parser](https://github.com/joyent/http-parser): https://github.com/joyent/http-parser/commit/36808f4fad0d6ccda8ee0d5e199fe30691242952
 

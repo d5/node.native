@@ -46,6 +46,10 @@ namespace native
                 registerEvent<event::data>();
                 registerEvent<event::end>();
                 registerEvent<event::close>();
+
+                socket_->on<event::data>([this](const Buffer& buffer){ emit<event::data>(buffer); });
+                socket_->on<event::end>([this](){ emit<event::end>(); });
+                socket_->on<event::close>([this](){ emit<event::close>(); });
             }
 
             virtual ~ServerRequest()
@@ -90,6 +94,9 @@ namespace native
                 assert(socket_);
 
                 registerEvent<event::close>();
+                registerEvent<event::error>();
+
+                socket_->on<event::close>([this](){ emit<event::close>(); });
             }
 
             virtual ~ServerResponse()
@@ -116,7 +123,16 @@ namespace native
 
             void end(const Buffer& data)
             {
-                socket_->end(data);
+                assert(socket_);
+
+                if(socket_->end(data))
+                {
+                    socket_ = nullptr;
+                }
+                else
+                {
+                    emit<event::error>(Exception("Failed to close the socket."));
+                }
             }
 
         private:
