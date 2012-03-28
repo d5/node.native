@@ -417,7 +417,11 @@ namespace native
 				};
 
 				socket_->read_start([=](const char* buf, int len){
-					http_parser_execute(&parser_, &parser_settings_, buf, len);
+					if (buf == 0x00 && len == -1) {
+						response_->set_status(500);
+					} else {
+						http_parser_execute(&parser_, &parser_settings_, buf, len);
+					}
 				});
 
 				return true;
