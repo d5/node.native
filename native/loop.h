@@ -50,18 +50,6 @@ namespace native
         bool run_once() { return uv_run_once(uv_loop_)==0; }
 
         /*!
-         *  Increments loop's reference count by 1.
-         *  Internally, this function just calls uv_ref() function.
-         */
-        void ref() { uv_ref(uv_loop_); }
-
-        /*!
-         *  Decrements loop's reference count by 1.
-         *  Internally, this function just calls uv_unref() function.
-         */
-        void unref() { uv_unref(uv_loop_); }
-
-        /*!
          *  ...
          *  Internally, this function just calls uv_update_time() function.
          */

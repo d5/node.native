@@ -3,28 +3,30 @@ CXXFLAGS = -std=gnu++0x -g -O0 -I$(LIBUV_PATH)/include -I$(HTTP_PARSER_PATH) -I.
 OS_NAME=$(shell uname -s)
 ifeq (${OS_NAME},Darwin)
 	RTLIB=
+	LIBUV_NAME=uv.a
 else
 	RTLIB=-lrt
+	LIBUV_NAME=libuv.a
 endif
 
 all: webclient webserver file_test
 
-webclient: webclient.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
-	$(CXX) $(CXXFLAGS) -o webclient webclient.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
+webclient: webclient.cpp $(LIBUV_PATH)/$(LIBUV_NAME) $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
+	$(CXX) $(CXXFLAGS) -o webclient webclient.cpp $(LIBUV_PATH)/$(LIBUV_NAME) $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
 	
-webserver: webserver.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
-	$(CXX) $(CXXFLAGS) -o webserver webserver.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
+webserver: webserver.cpp $(LIBUV_PATH)/$(LIBUV_NAME) $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
+	$(CXX) $(CXXFLAGS) -o webserver webserver.cpp $(LIBUV_PATH)/$(LIBUV_NAME) $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
 	
-file_test: file_test.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
-	$(CXX) $(CXXFLAGS) -o file_test file_test.cpp $(LIBUV_PATH)/uv.a $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
+file_test: file_test.cpp $(LIBUV_PATH)/$(LIBUV_NAME) $(HTTP_PARSER_PATH)/http_parser.o $(wildcard native/*.h)
+	$(CXX) $(CXXFLAGS) -o file_test file_test.cpp $(LIBUV_PATH)/$(LIBUV_NAME) $(HTTP_PARSER_PATH)/http_parser.o $(RTLIB) -lm -lpthread
 
-$(LIBUV_PATH)/uv.a:
+$(LIBUV_PATH)/$(LIBUV_NAME):
 	$(MAKE) -C $(LIBUV_PATH)
 
 $(HTTP_PARSER_PATH)/http_parser.o:
 	$(MAKE) -C $(HTTP_PARSER_PATH) http_parser.o
 	
 clean:
-	rm -f $(LIBUV_PATH)/uv.a
+	rm -f $(LIBUV_PATH)/$(LIBUV_NAME)
 	rm -f $(HTTP_PARSER_PATH)/http_parser.o
 	rm -f webclient webserver file_test
