@@ -41,25 +41,22 @@ namespace native
          *  Starts the loop.
          *  Internally, this function just calls uv_run() function.
          */
-        bool run() { return uv_run(uv_loop_)==0; }
+        bool run() { 
+
+            /* new libuv stuff */
+            return uv_run(uv_loop_, UV_RUN_DEFAULT)==0; 
+        }
 
         /*!
          *  Polls for new events without blocking.
          *  Internally, this function just calls uv_run_once() function.
          */
-        bool run_once() { return uv_run_once(uv_loop_)==0; }
+        bool run_once() { 
 
-        /*!
-         *  Increments loop's reference count by 1.
-         *  Internally, this function just calls uv_ref() function.
-         */
-        void ref() { uv_ref(uv_loop_); }
-
-        /*!
-         *  Decrements loop's reference count by 1.
-         *  Internally, this function just calls uv_unref() function.
-         */
-        void unref() { uv_unref(uv_loop_); }
+            //return uv_run_once(uv_loop_)==0; 
+     
+            return uv_run(uv_loop_, UV_RUN_ONCE)==0; 
+        }
 
         /*!
          *  ...
@@ -91,7 +88,8 @@ namespace native
      */
     int run()
     {
-        return uv_run(uv_default_loop());
+        /*New libuv requires a runmode enum argument*/
+        return uv_run(uv_default_loop(),UV_RUN_DEFAULT);
     }
 
     /*!
@@ -99,7 +97,8 @@ namespace native
      */
     int run_once()
     {
-        return uv_run(uv_default_loop());
+        /*New libuv requires a runmode argument*/
+        return uv_run(uv_default_loop(),UV_RUN_ONCE);
     }
 }
 

@@ -9,3 +9,7 @@ wiki/*
 webclient
 webserver
 file_test
+
+webserver.dSYM
+webclient.dSYM
+file_test.dSYM
