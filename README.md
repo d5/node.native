@@ -30,16 +30,17 @@ Simplest web-server example using node.native.
 
 <em>node.native</em> consists of header files(*.h) only, but requires [libuv](https://github.com/joyent/libuv) and [http-parser](https://github.com/joyent/http-parser) lib to use.
 
-To compile included sample application(webserver.cpp):
+To compile included sample application(webserver.cpp) first run the following command in the project directory:
 
-    export LIBUV_PATH=/path/to/libuv_dir
-    export HTTP_PARSER_PATH=/path/to/http-parser_dir
+    git submodule update --init
 
 then,
 
     make
 
-I tested the code on Ubuntu 11.10 and GCC 4.6.1.
+alternatively you can set custom paths to http-parser and libuv if you dont want to use the submodules.
+
+Tested on Ubuntu 11.10 and GCC 4.6.1. and OSX 10.8.2
 
 ## Other Resources
 
