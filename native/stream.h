@@ -76,7 +76,7 @@ namespace native
 
 			bool write(const char* buf, int len, std::function<void(error)> callback)
 			{
-				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), len } };
+				uv_buf_t bufs[] = { uv_buf_t { const_cast<char*>(buf), static_cast<size_t>(len) } };
 				callbacks::store(get()->data, native::internal::uv_cid_write, callback);
 				return uv_write(new uv_write_t, get<uv_stream_t>(), bufs, 1, [](uv_write_t* req, int status) {
 					callbacks::invoke<decltype(callback)>(req->handle->data, native::internal::uv_cid_write, status?uv_last_error(req->handle->loop):error());
