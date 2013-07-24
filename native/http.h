@@ -260,11 +260,11 @@ namespace native
 		public:
 			const url_obj& url() const { return url_; }
 
-			const std::string& get_header(const std::string& key, const std::string& default_value=std::string()) const
+			const std::string& get_header(const std::string& key) const
 			{
 				auto it = headers_.find(key);
 				if(it != headers_.end()) return it->second;
-				return default_value;
+				return default_value_;
 			}
 
 			bool get_header(const std::string& key, std::string& value) const
@@ -281,6 +281,7 @@ namespace native
 		private:
 			url_obj url_;
 			std::map<std::string, std::string, native::text::ci_less> headers_;
+            std::string default_value_;
 		};
 
 		class client_context
