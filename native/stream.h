@@ -6,6 +6,8 @@
 #include "handle.h"
 #include "callback.h"
 
+#include <algorithm>
+
 namespace native
 {
 	namespace base
@@ -36,22 +38,15 @@ namespace native
 				return read_start<0>(callback);
 			}
 
-			template<int max_alloc_size>
+			template<size_t max_alloc_size>
 			bool read_start(std::function<void(const char* buf, ssize_t len)> callback)
 			{
 				callbacks::store(get()->data, native::internal::uv_cid_read_start, callback);
 
 				return uv_read_start(get<uv_stream_t>(),
 					[](uv_handle_t*, size_t suggested_size){
-						if(!max_alloc_size)
-						{
-							return uv_buf_t { new char[suggested_size], suggested_size };
-						}
-						else
-						{
-							auto size = max_alloc_size > suggested_size ? suggested_size : max_alloc_size;
-							return uv_buf_t { new char[size], size };
-						}
+                        auto size = std::max(suggested_size, max_alloc_size);
+                        return uv_buf_t { new char[size], size };
 					},
 					[](uv_stream_t* s, ssize_t nread, uv_buf_t buf){
 						if(nread < 0)

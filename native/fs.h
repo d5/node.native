@@ -360,7 +360,7 @@ namespace native
     public:
         static bool read(const std::string& path, std::function<void(const std::string& str, error e)> callback)
         {
-            if(!fs::open(path.c_str(), fs::read_only, 0, [=](fs::file_handle fd, error e) {
+            return fs::open(path.c_str(), fs::read_only, 0, [=](fs::file_handle fd, error e) {
                 if(e)
                 {
                     callback(std::string(), e);
@@ -373,12 +373,12 @@ namespace native
                         callback(std::string(), error(uv_last_error(uv_default_loop())));
                     }
                 }
-            })) return false;
+            });
         }
 
         static bool write(const std::string& path, const std::string& str, std::function<void(int nwritten, error e)> callback)
         {
-            if(!fs::open(path.c_str(), fs::write_only|fs::create, 0664, [=](fs::file_handle fd, error e) {
+            return fs::open(path.c_str(), fs::write_only|fs::create, 0664, [=](fs::file_handle fd, error e) {
                 if(e)
                 {
                     callback(0, e);
@@ -391,7 +391,7 @@ namespace native
                         callback(0, error(uv_last_error(uv_default_loop())));
                     }
                 }
-            })) return false;
+            });
         }
     };
 }
