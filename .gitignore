@@ -15,4 +15,5 @@ webclient.dSYM
 file_test.dSYM
 *.xcodeproj
 
-vm/build/xcode
+.DS_Store
+**.xcuserstate
