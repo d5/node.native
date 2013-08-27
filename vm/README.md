@@ -17,3 +17,8 @@ this is an experimental C++ module system based on roadmap & milestone discussio
 * [C++11 TR Draft & Complete Reference, 2011](http://www.open-std.org/jtc1/sc22/wg21/)
 * [C++11 Wiki](https://en.wikipedia.org/wiki/C%2B%2B11)
 * [C++11 FAQ from Stroustrup](http://www.stroustrup.com/C++11FAQ.html)
+
+
+### LibClang
+
+* <http://stackoverflow.com/questions/11619662/embed-libclang-in-an-ios-app>
