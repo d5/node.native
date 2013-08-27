@@ -14,3 +14,5 @@ webserver.dSYM
 webclient.dSYM
 file_test.dSYM
 *.xcodeproj
+
+vm/build/xcode
