@@ -21,4 +21,4 @@ this is an experimental C++ module system based on roadmap & milestone discussio
 
 ### LibClang
 
-* <http://stackoverflow.com/questions/11619662/embed-libclang-in-an-ios-app>
+* <http://clang.llvm.org/doxygen/group__CINDEX.html>
