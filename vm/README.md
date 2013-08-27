@@ -9,7 +9,8 @@ this is an experimental C++ module system based on roadmap & milestone discussio
 
 * [Dynamic Loading Wiki](https://en.wikipedia.org/wiki/Dynamic_loading) 
 * [Dynamic Library Programming Topics](https://developer.apple.com/library/mac/DOCUMENTATION/DeveloperTools/Conceptual/DynamicLibraries/000-Introduction/Introduction.html)
-* [Clang compiler front end](http://clang.llvm.org/docs/index.html)
+* [Clang compiler front end](http://clang.llvm.org/docs/index.html)  
+ *  [Installation](http://clang.llvm.org/get_started.html)
 
 ### C++11 References 
 
