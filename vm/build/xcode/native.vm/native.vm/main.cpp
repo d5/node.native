@@ -18,7 +18,8 @@ int main(int argc, char *argv[])
     
     for(unsigned I = 0, N = clang_getNumDiagnostics(TU); I!=N; ++I){
         CXDiagnostic diag = clang_getDiagnostic(TU, I);
-        CXString str = clang_format
+        CXString str = clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
+        cout << "CLANG DIAGNOSTIC: " << clang_getCString(str) << endl;
     }
     
     clang_disposeTranslationUnit(TU);
