@@ -21,4 +21,5 @@ this is an experimental C++ module system based on roadmap & milestone discussio
 
 ### LibClang
 
+* <http://llvm.org/devmtg/2010-11/Gregor-libclang.pdf>
 * <http://clang.llvm.org/doxygen/group__CINDEX.html>
