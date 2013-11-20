@@ -304,8 +304,8 @@ namespace native
 				assert(server);
 
 				// TODO: check error
-				socket_ = new native::net::tcp;
-				server->accept(socket_);
+				socket_ = std::shared_ptr<native::net::tcp> (new native::net::tcp);
+				server->accept(socket_.get());
 			}
 
 		public:
@@ -329,13 +329,9 @@ namespace native
 					callback_lut_ = nullptr;
 				}
 
-				if(socket_)
+				if(socket_.use_count())
 				{
-					// TODO: maybe close() does not affect socket_ pointer itself. So, delete socket_ does not have to be inside the callback.
-					socket_->close([=](){
-						delete socket_;
-						socket_ = nullptr;
-					});
+					socket_->close([=](){});
 				}
 			}
 
@@ -343,7 +339,7 @@ namespace native
 			bool parse(std::function<void(request&, response&)> callback)
 			{
 				request_ = new request;
-				response_ = new response(this, socket_);
+				response_ = new response(this, socket_.get());
 
 				http_parser_init(&parser_, HTTP_REQUEST);
 				parser_.data = this;
@@ -435,7 +431,7 @@ namespace native
 			std::string last_header_field_;
 			std::string last_header_value_;
 
-			native::net::tcp* socket_;
+			std::shared_ptr<native::net::tcp> socket_;
 			request* request_;
 			response* response_;
 
