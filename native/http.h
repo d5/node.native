@@ -249,6 +249,7 @@ namespace native
             request()
                 : url_()
                 , headers_()
+                , body_("")
             {
             }
 
