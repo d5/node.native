@@ -5,7 +5,7 @@
 	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
 	<false/>
 	<key>IDESourceControlProjectIdentifier</key>
-	<string>65409CB7-C295-4380-A3AA-EF4443E705F5</string>
+	<string>488A4732-A189-4D3D-853C-073EAA9F1E88</string>
 	<key>IDESourceControlProjectName</key>
 	<string>native.vm</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
@@ -14,11 +14,11 @@
 		<string>https://github.com/d5/node.native.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
-	<string>vm/build/xcode/native.vm.xcworkspace</string>
+	<string>vm/build/xcode/native.vm/native.vm.xcodeproj/project.xcworkspace</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
 		<key>01604DD8-050E-4316-BB5E-C11E7980720D</key>
-		<string>../../../..</string>
+		<string>../../../../../..</string>
 	</dict>
 	<key>IDESourceControlProjectURL</key>
 	<string>https://github.com/d5/node.native.git</string>
