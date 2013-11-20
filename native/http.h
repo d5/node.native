@@ -278,10 +278,16 @@ namespace native
 				return false;
 			}
 
+                        std::string get_body (void)
+                        {
+                                return body_;
+                        }
+
 		private:
 			url_obj url_;
 			std::map<std::string, std::string, native::text::ci_less> headers_;
-            std::string default_value_;
+                        std::string body_;
+                        std::string default_value_;
 		};
 
 		class client_context
@@ -401,26 +407,32 @@ namespace native
 					auto client = reinterpret_cast<client_context*>(parser->data);
 
 					// add last entry if any
-					if(!client->last_header_field_.empty())
-					{
+					if(!client->last_header_field_.empty()) {
 						// add new entry
 						client->request_->headers_[client->last_header_field_] = client->last_header_value_;
 					}
 
-					//return 0;
-					return 1; // do not parse body
+					return 0; // 1 to prevent reading of message body.
+				};
+				parser_settings_.on_body = [](http_parser* parser, const char* at, size_t len) {
+                                        //printf("on_body, len of 'char* at' is %d\n", len);
+					auto client = reinterpret_cast<client_context*>(parser->data);
+                                        client->request_->body_ = std::string(at, len);
+					return 0;
 				};
 				parser_settings_.on_message_complete = [](http_parser* parser) {
+                                        //printf("on_message_complete, so invoke the callback.\n");
 					auto client = reinterpret_cast<client_context*>(parser->data);
 					// invoke stored callback object
 					callbacks::invoke<decltype(callback)>(client->callback_lut_, 0, *client->request_, *client->response_);
-					return 0;
+					return 1; // 0 or 1?
 				};
 
 				socket_->read_start([=](const char* buf, int len){
 					if (buf == 0x00 && len == -1) {
 						response_->set_status(500);
 					} else {
+                                                printf ("Execute parser in this:%x\n", this);
 						http_parser_execute(&parser_, &parser_settings_, buf, len);
 					}
 				});
@@ -477,8 +489,8 @@ namespace native
 				    }
 				    else
 				    {
-                        auto client = new client_context(socket_.get());
-                        client->parse(callback);
+                                        auto client = new client_context(socket_.get());
+                                        client->parse(callback);
 				    }
 				})) return false;
 
