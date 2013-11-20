@@ -428,7 +428,6 @@ namespace native
 					if (buf == 0x00 && len == -1) {
 						response_->set_status(500);
 					} else {
-                                                printf ("Execute parser in this:%x\n", this);
 						http_parser_execute(&parser_, &parser_settings_, buf, len);
 					}
 				});
