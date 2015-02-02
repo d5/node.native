@@ -73,7 +73,7 @@ namespace native
                 delete req;
             }
 
-            void delete_req(uv_fs_t* req)
+            inline void delete_req(uv_fs_t* req)
             {
                 delete reinterpret_cast<callbacks*>(req->data);
                 uv_fs_req_cleanup(req);
@@ -122,7 +122,7 @@ namespace native
             }
         }
 
-        bool open(const std::string& path, int flags, int mode, std::function<void(native::fs::file_handle fd, error e)> callback)
+        inline bool open(const std::string& path, int flags, int mode, std::function<void(native::fs::file_handle fd, error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_open(uv_default_loop(), req, path.c_str(), flags, mode, [](uv_fs_t* req) {
@@ -140,7 +140,7 @@ namespace native
             return true;
         }
 
-        bool read(file_handle fd, size_t len, off_t offset, std::function<void(const std::string& str, error e)> callback)
+        inline bool read(file_handle fd, size_t len, off_t offset, std::function<void(const std::string& str, error e)> callback)
         {
             auto buf = new char[len];
             auto req = internal::create_req(callback, buf);
@@ -172,7 +172,7 @@ namespace native
             return true;
         }
 
-        bool write(file_handle fd, const char* buf, size_t len, off_t offset, std::function<void(int nwritten, error e)> callback)
+        inline bool write(file_handle fd, const char* buf, size_t len, off_t offset, std::function<void(int nwritten, error e)> callback)
         {
             auto req = internal::create_req(callback);
 
@@ -198,7 +198,7 @@ namespace native
             return true;
         }
 
-        bool read_to_end(file_handle fd, std::function<void(const std::string& str, error e)> callback)
+        inline bool read_to_end(file_handle fd, std::function<void(const std::string& str, error e)> callback)
         {
             auto ctx = new internal::rte_context;
             ctx->file = fd;
@@ -212,7 +212,7 @@ namespace native
             return true;
         }
 
-        bool close(file_handle fd, std::function<void(error e)> callback)
+        inline bool close(file_handle fd, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_close(uv_default_loop(), req, fd, [](uv_fs_t* req){
@@ -226,7 +226,7 @@ namespace native
             return true;
         }
 
-        bool unlink(const std::string& path, std::function<void(error e)> callback)
+        inline bool unlink(const std::string& path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_unlink(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
@@ -240,7 +240,7 @@ namespace native
             return true;
         }
 
-        bool mkdir(const std::string& path, int mode, std::function<void(error e)> callback)
+        inline bool mkdir(const std::string& path, int mode, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_mkdir(uv_default_loop(), req, path.c_str(), mode, [](uv_fs_t* req){
@@ -254,7 +254,7 @@ namespace native
             return true;
         }
 
-        bool rmdir(const std::string& path, std::function<void(error e)> callback)
+        inline bool rmdir(const std::string& path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_rmdir(uv_default_loop(), req, path.c_str(), [](uv_fs_t* req){
@@ -268,7 +268,7 @@ namespace native
             return true;
         }
 
-        bool rename(const std::string& path, const std::string& new_path, std::function<void(error e)> callback)
+        inline bool rename(const std::string& path, const std::string& new_path, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_rename(uv_default_loop(), req, path.c_str(), new_path.c_str(), [](uv_fs_t* req){
@@ -282,7 +282,7 @@ namespace native
             return true;
         }
 
-        bool chmod(const std::string& path, int mode, std::function<void(error e)> callback)
+        inline bool chmod(const std::string& path, int mode, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_chmod(uv_default_loop(), req, path.c_str(), mode, [](uv_fs_t* req){
@@ -296,7 +296,7 @@ namespace native
             return true;
         }
 
-        bool chown(const std::string& path, int uid, int gid, std::function<void(error e)> callback)
+        inline bool chown(const std::string& path, int uid, int gid, std::function<void(error e)> callback)
         {
             auto req = internal::create_req(callback);
             if(uv_fs_chown(uv_default_loop(), req, path.c_str(), uid, gid, [](uv_fs_t* req){

@@ -10,7 +10,7 @@ namespace native
     {
         class handle;
 
-        void _delete_handle(uv_handle_t* h);
+        inline void _delete_handle(uv_handle_t* h);
 
         class handle
         {
@@ -67,7 +67,7 @@ namespace native
             uv_handle_t* uv_handle_;
         };
 
-        void _delete_handle(uv_handle_t* h)
+        inline void _delete_handle(uv_handle_t* h)
         {
             assert(h);
 

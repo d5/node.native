@@ -501,17 +501,17 @@ namespace native
         typedef http_parser_url_fields url_fields;
         typedef http_errno error;
 
-        const char* get_error_name(error err)
+        inline const char* get_error_name(error err)
         {
             return http_errno_name(err);
         }
 
-        const char* get_error_description(error err)
+        inline const char* get_error_description(error err)
         {
             return http_errno_description(err);
         }
 
-        const char* get_method_name(method m)
+        inline const char* get_method_name(method m)
         {
             return http_method_str(m);
         }

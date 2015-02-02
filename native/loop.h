@@ -86,7 +86,7 @@ namespace native
     /*!
      *  Starts the default loop.
      */
-    int run()
+    inline int run()
     {
         /*New libuv requires a runmode enum argument*/
         return uv_run(uv_default_loop(),UV_RUN_DEFAULT);
@@ -95,7 +95,7 @@ namespace native
     /*!
      *  Polls for new events without blocking for the default loop.
      */
-    int run_once()
+    inline int run_once()
     {
         /*New libuv requires a runmode argument*/
         return uv_run(uv_default_loop(),UV_RUN_ONCE);
